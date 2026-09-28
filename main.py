@@ -25,14 +25,26 @@ logging.basicConfig(level=logging.INFO)
 async def lifespan(app: FastAPI):
     # Create tables
     Base.metadata.create_all(bind=engine)
-    # Start background GPS poller
-    poller_task = asyncio.create_task(run_poller())
+
+    # Seed default data if empty
+    from app.core.seed import seed_if_empty
+    seed_if_empty()
+
+    # Start background GPS poller only if Traccar is configured
+    poller_task = None
+    from app.core.config import TRACCAR_URL, TRACCAR_TOKEN
+
+    if TRACCAR_TOKEN and "localhost" not in TRACCAR_URL:
+        poller_task = asyncio.create_task(run_poller())
+
     yield
-    poller_task.cancel()
-    try:
-        await poller_task
-    except asyncio.CancelledError:
-        pass
+
+    if poller_task:
+        poller_task.cancel()
+        try:
+            await poller_task
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(title="K-FLEET SECURE", lifespan=lifespan)
