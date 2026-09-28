@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ vehicle.registration_number }} — QR</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+            background: #f8fafc;
+            color: #0f172a;
+            padding: 40px 24px;
+            text-align: center;
+        }
+        .card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 40px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        img { width: 280px; height: 280px; }
+        .plate {
+            font-size: 26px;
+            font-weight: 700;
+            margin-top: 20px;
+            letter-spacing: 2px;
+        }
+        .vehicle-info { color: #64748b; font-size: 14px; margin-top: 6px; }
+        .actions { margin-top: 24px; display: flex; gap: 12px; justify-content: center; }
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #22c55e;
+            color: #0f172a;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 14px;
+            border: none;
+            cursor: pointer;
+        }
+        .btn.secondary { background: #3b82f6; color: #fff; }
+        @media print { .actions { display: none; } body { padding: 0; } }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <img src="{{ qr_data_url }}" alt="QR for {{ vehicle.registration_number }}">
+        <div class="plate">{{ vehicle.registration_number }}</div>
+        <div class="vehicle-info">
+            {{ vehicle.make or "" }} {{ vehicle.model or "" }}
+            {% if vehicle.home_station %}· {{ vehicle.home_station.name }}{% endif %}
+        </div>
+    </div>
+    <div class="actions">
+        <button class="btn" onclick="window.print()">Print</button>
+        <a href="/vehicles/qr-codes" class="btn secondary">All QR Codes</a>
+        <a href="/dashboard" class="btn secondary">Dashboard</a>
+    </div>
+</body>
+</html>

@@ -1,0 +1,30 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+
+# Database (local development only — Render will have its own)
+kfleet.db
+
+# Environment variables — never commit these
+.env
+.env.*
+!.env.example
+
+# Secrets and config
+app/core/config.local.py
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log

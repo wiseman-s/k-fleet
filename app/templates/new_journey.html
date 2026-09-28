@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>K-FLEET SECURE — Dashboard</title>
+    <meta http-equiv="refresh" content="30">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 24px;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #1e293b;
+        }
+        header h1 { font-size: 24px; letter-spacing: 1px; }
+        header .meta { color: #94a3b8; font-size: 14px; }
+
+        .actions { margin-bottom: 24px; display: flex; gap: 12px; flex-wrap: wrap; }
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #22c55e;
+            color: #0f172a;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 14px;
+            border: none;
+            cursor: pointer;
+        }
+        .btn.secondary { background: #3b82f6; color: #fff; }
+        .btn.danger { background: #ef4444; color: #fff; }
+        .btn.small { padding: 6px 12px; font-size: 12px; }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        .card {
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid #475569;
+        }
+        .card .label { color: #94a3b8; font-size: 13px; margin-bottom: 8px; }
+        .card .value { font-size: 32px; font-weight: 700; }
+        .card.green  { border-left-color: #22c55e; }
+        .card.yellow { border-left-color: #eab308; }
+        .card.red    { border-left-color: #ef4444; }
+        .card.blue   { border-left-color: #3b82f6; }
+
+        h2 { margin: 32px 0 16px; font-size: 18px; color: #cbd5e1; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #1e293b;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        th, td { padding: 12px 16px; text-align: left; font-size: 14px; vertical-align: middle; }
+        th { background: #334155; color: #cbd5e1; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+        tr:nth-child(even) td { background: #243047; }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge.parked { background: #334155; color: #cbd5e1; }
+        .badge.on_journey { background: #166534; color: #bbf7d0; }
+        .badge.overdue { background: #991b1b; color: #fecaca; }
+        .badge.pending { background: #78350f; color: #fed7aa; }
+        .badge.approved { background: #1e3a8a; color: #bfdbfe; }
+        .badge.out { background: #166534; color: #bbf7d0; }
+        .badge.closed { background: #334155; color: #cbd5e1; }
+        .badge.rejected { background: #991b1b; color: #fecaca; }
+
+        .inline-form { display: inline; }
+        .inline-form input[type="number"] {
+            width: 120px;
+            padding: 6px 8px;
+            border-radius: 6px;
+            border: 1px solid #334155;
+            background: #0f172a;
+            color: #e2e8f0;
+            font-size: 13px;
+            margin-right: 6px;
+        }
+        .footer { color: #64748b; font-size: 12px; margin-top: 32px; text-align: center; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>K-FLEET SECURE</h1>
+        <div class="meta">Live Fleet Dashboard · Auto-refresh every 30s</div>
+    </header>
+
+    <div class="actions">
+        <a href="/journeys/create-page" class="btn">+ New Journey Request</a>
+    </div>
+
+    <div class="cards">
+        <div class="card blue">
+            <div class="label">Total Vehicles</div>
+            <div class="value">{{ data.vehicles_total }}</div>
+        </div>
+        <div class="card green">
+            <div class="label">Parked</div>
+            <div class="value">{{ data.vehicles_parked }}</div>
+        </div>
+        <div class="card yellow">
+            <div class="label">On Journey</div>
+            <div class="value">{{ data.vehicles_on_journey }}</div>
+        </div>
+        <div class="card red">
+            <div class="label">Overdue</div>
+            <div class="value">{{ data.vehicles_overdue }}</div>
+        </div>
+        <div class="card blue">
+            <div class="label">Pending Approval</div>
+            <div class="value">{{ data.journeys_pending_approval }}</div>
+        </div>
+        <div class="card yellow">
+            <div class="label">Approved, Not Out</div>
+            <div class="value">{{ data.journeys_approved }}</div>
+        </div>
+        <div class="card green">
+            <div class="label">Closed Today</div>
+            <div class="value">{{ data.journeys_closed_today }}</div>
+        </div>
+    </div>
+
+    <h2>Fleet Status</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Vehicle</th>
+                <th>Make / Model</th>
+                <th>Home Station</th>
+                <th>Status</th>
+                <th>Journey</th>
+                <th>Driver</th>
+                <th>Destination</th>
+                <th>Expected Return</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for v in data.vehicles %}
+            <tr>
+                <td><strong>{{ v.registration_number }}</strong></td>
+                <td>{{ v.make or "" }} {{ v.model or "" }}</td>
+                <td>{{ v.home_station or "—" }}</td>
+                <td><span class="badge {{ v.status }}">{{ v.status.replace("_", " ") }}</span></td>
+                <td>{{ v.journey_code or "—" }}</td>
+                <td>{{ v.driver_name or "—" }}</td>
+                <td>{{ v.destination or "—" }}</td>
+                <td>{{ v.expected_return.strftime("%Y-%m-%d %H:%M") if v.expected_return else "—" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Today's Journey Activity</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Vehicle</th>
+                <th>Driver</th>
+                <th>Department</th>
+                <th>Destination</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for j in data.recent_journeys %}
+            <tr>
+                <td><strong>{{ j.journey_code }}</strong></td>
+                <td>{{ j.registration_number or "—" }}</td>
+                <td>{{ j.driver_name or "—" }}</td>
+                <td>{{ j.department or "—" }}</td>
+                <td>{{ j.destination }}</td>
+                <td><span class="badge {{ j.status }}">{{ j.status }}</span></td>
+                <td>
+                    {% if j.status == "pending" %}
+                    <form class="inline-form" method="POST" action="/journeys/{{ j.id }}/approve-page">
+                        <input type="hidden" name="approved_by_id" value="1">
+                        <button type="submit" class="btn small">Approve</button>
+                    </form>
+                    {% elif j.status == "approved" %}
+                    <form class="inline-form" method="POST" action="/journeys/{{ j.id }}/exit-page">
+                        <input type="number" name="starting_odometer" placeholder="Odometer" required>
+                        <button type="submit" class="btn small">Record Exit</button>
+                    </form>
+                    {% elif j.status == "out" %}
+                    <form class="inline-form" method="POST" action="/journeys/{{ j.id }}/return-page">
+                        <input type="number" name="ending_odometer" placeholder="Odometer" required>
+                        <button type="submit" class="btn small secondary">Record Return</button>
+                    </form>
+                    {% else %}
+                    —
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            {% if not data.recent_journeys %}
+            <tr><td colspan="7" style="text-align:center; color:#64748b; padding:24px;">No journeys recorded yet.</td></tr>
+            {% endif %}
+        </tbody>
+    </table>
+
+    <div class="footer">K-FLEET SECURE · KenGen Digital Fleet Movement &amp; Security Management System</div>
+</body>
+</html>

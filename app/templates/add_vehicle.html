@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Add Vehicle — K-FLEET</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #e2e8f0; padding: 24px; }
+        .container { max-width: 640px; margin: 0 auto; background: #1e293b; padding: 32px; border-radius: 12px; }
+        h1 { margin-bottom: 8px; font-size: 22px; }
+        .subtitle { color: #94a3b8; font-size: 14px; margin-bottom: 24px; }
+        label { display: block; margin-top: 16px; margin-bottom: 6px; color: #94a3b8; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        input, select { width: 100%; padding: 10px 12px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; font-size: 14px; font-family: inherit; }
+        input:focus, select:focus { outline: none; border-color: #3b82f6; }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        button { margin-top: 28px; padding: 12px 24px; background: #22c55e; color: #0f172a; border: none; border-radius: 6px; font-weight: 700; font-size: 15px; cursor: pointer; width: 100%; }
+        button:hover { background: #16a34a; }
+        .back { display: inline-block; margin-top: 16px; color: #94a3b8; text-decoration: none; font-size: 14px; }
+        .back:hover { color: #e2e8f0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Add Vehicle</h1>
+        <div class="subtitle">Register a new vehicle in the fleet.</div>
+
+        <form method="POST" action="/vehicles/add-page">
+            <label>Registration Number</label>
+            <input type="text" name="registration_number" required placeholder="e.g. KAA 123X">
+
+            <div class="row">
+                <div>
+                    <label>Make</label>
+                    <input type="text" name="make" placeholder="e.g. Toyota">
+                </div>
+                <div>
+                    <label>Model</label>
+                    <input type="text" name="model" placeholder="e.g. Hilux">
+                </div>
+            </div>
+
+            <div class="row">
+                <div>
+                    <label>Year</label>
+                    <input type="number" name="year" min="1980" max="2100" placeholder="2020">
+                </div>
+                <div>
+                    <label>Fuel Type</label>
+                    <select name="fuel_type">
+                        <option value="">—</option>
+                        <option value="Petrol">Petrol</option>
+                        <option value="Diesel">Diesel</option>
+                        <option value="Electric">Electric</option>
+                    </select>
+                </div>
+            </div>
+
+            <label>Home Station</label>
+            <select name="home_station_id" required>
+                {% for s in stations %}
+                <option value="{{ s.id }}">{{ s.name }}</option>
+                {% endfor %}
+            </select>
+
+            <label>Current Odometer (km)</label>
+            <input type="number" name="current_odometer" min="0" value="0">
+
+            <label>Status</label>
+            <select name="status">
+                <option value="active">Active</option>
+                <option value="maintenance">Maintenance</option>
+                <option value="retired">Retired</option>
+            </select>
+
+            <button type="submit">Save Vehicle</button>
+        </form>
+
+        <a href="/dashboard" class="back">← Back to Dashboard</a>
+    </div>
+</body>
+</html>

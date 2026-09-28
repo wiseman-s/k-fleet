@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K-FLEET SECURE — Dashboard</title>
+    <meta http-equiv="refresh" content="30">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #0a1120;
+            --surface: #131c31;
+            --surface-alt: #1a2439;
+            --border: #243047;
+            --text: #e6edf7;
+            --text-muted: #8b98ad;
+            --text-dim: #64748b;
+            --green: #22c55e;
+            --blue: #3b82f6;
+            --amber: #f59e0b;
+            --red: #ef4444;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 28px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+        .brand { display: flex; align-items: center; gap: 14px; }
+        .brand-mark {
+            width: 42px; height: 42px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--green), #16a34a);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 900; color: #052e16; font-size: 18px;
+            letter-spacing: -1px;
+        }
+        .brand-text h1 {
+            font-size: 20px; font-weight: 800;
+            letter-spacing: 2px; color: #f8fafc;
+        }
+        .brand-text .sub {
+            color: var(--text-dim); font-size: 11px;
+            letter-spacing: 1px; text-transform: uppercase; margin-top: 2px;
+        }
+        .user-block { display: flex; align-items: center; gap: 16px; }
+        .user-info { text-align: right; font-size: 13px; }
+        .user-info .name { font-weight: 700; color: var(--text); }
+        .user-info .role {
+            color: var(--text-dim); font-size: 11px;
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        .signout {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 8px 14px; border-radius: 6px;
+            background: transparent; border: 1px solid var(--border);
+            color: var(--text-muted); text-decoration: none;
+            font-size: 12px; font-weight: 600; transition: all 0.15s;
+        }
+        .signout:hover { border-color: var(--red); color: var(--red); }
+
+        .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 32px; }
+        .btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 11px 18px; border-radius: 8px;
+            text-decoration: none; font-weight: 700; font-size: 13px;
+            border: none; cursor: pointer;
+            transition: transform 0.1s, opacity 0.15s; font-family: inherit;
+        }
+        .btn:hover { opacity: 0.92; transform: translateY(-1px); }
+        .btn.primary { background: var(--green); color: #052e16; }
+        .btn.secondary { background: var(--blue); color: #fff; }
+        .btn.outline {
+            background: transparent; color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
+        .btn.outline:hover { color: var(--text); border-color: var(--text-muted); }
+        .btn.danger { background: var(--red); color: #fff; }
+        .btn.gold { background: var(--amber); color: #451a03; }
+        .btn.small { padding: 6px 12px; font-size: 12px; border-radius: 6px; }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 14px; margin-bottom: 36px;
+        }
+        .metric {
+            background: var(--surface); padding: 20px;
+            border-radius: 12px; border: 1px solid var(--border);
+            position: relative; overflow: hidden;
+            transition: border-color 0.15s;
+        }
+        .metric:hover { border-color: #334155; }
+        .metric::before {
+            content: ''; position: absolute;
+            top: 0; left: 0; bottom: 0; width: 3px;
+            background: var(--text-dim);
+        }
+        .metric.green::before { background: var(--green); }
+        .metric.blue::before { background: var(--blue); }
+        .metric.amber::before { background: var(--amber); }
+        .metric.red::before { background: var(--red); }
+        .metric .label {
+            color: var(--text-muted); font-size: 11px;
+            text-transform: uppercase; letter-spacing: 1px;
+            font-weight: 700; margin-bottom: 10px;
+        }
+        .metric .value {
+            font-size: 34px; font-weight: 800; line-height: 1;
+            color: #f8fafc; letter-spacing: -1px;
+        }
+
+        .section { margin-top: 36px; }
+
+        /* ---------- Collapsible section ---------- */
+        .collapsible {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-top: 36px;
+            overflow: hidden;
+        }
+        .collapsible > summary {
+            list-style: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 18px 20px;
+            user-select: none;
+            transition: background 0.15s;
+        }
+        .collapsible > summary::-webkit-details-marker { display: none; }
+        .collapsible > summary:hover { background: var(--surface-alt); }
+        .collapsible > summary .section-title {
+            flex: 1;
+            margin: 0;
+        }
+        .collapsible > summary .section-meta {
+            color: var(--text-dim);
+            font-size: 12px;
+        }
+        .collapsible > summary .chevron {
+            color: var(--text-muted);
+            font-size: 14px;
+            transition: transform 0.2s;
+        }
+        .collapsible[open] > summary .chevron {
+            transform: rotate(90deg);
+        }
+        .collapsible > div {
+            padding: 0 20px 20px;
+        }
+        .section-header {
+            display: flex; justify-content: space-between;
+            align-items: baseline; margin-bottom: 14px;
+        }
+        .section-title {
+            font-size: 15px; font-weight: 700;
+            color: #cbd5e1; letter-spacing: 1px; text-transform: uppercase;
+        }
+        .section-meta { color: var(--text-dim); font-size: 12px; }
+
+        .table-wrap {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; overflow: hidden;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 13px 18px; text-align: left; font-size: 13px; vertical-align: middle; }
+        th {
+            background: var(--surface-alt); color: var(--text-muted);
+            font-weight: 700; font-size: 11px; text-transform: uppercase;
+            letter-spacing: 1px; border-bottom: 1px solid var(--border);
+        }
+        tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover { background: var(--surface-alt); }
+        td strong { color: #f8fafc; font-weight: 700; }
+        td .sub { color: var(--text-dim); font-size: 11px; }
+
+        .badge {
+            display: inline-flex; align-items: center;
+            padding: 4px 10px; border-radius: 999px;
+            font-size: 11px; font-weight: 700;
+            letter-spacing: 0.3px; text-transform: uppercase; white-space: nowrap;
+        }
+        .badge.parked { background: #1e293b; color: #94a3b8; }
+        .badge.on_journey { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+        .badge.overdue { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
+        .badge.pending { background: rgba(245, 158, 11, 0.15); color: #fcd34d; }
+        .badge.approved { background: rgba(59, 130, 246, 0.15); color: #93c5fd; }
+        .badge.out { background: rgba(59, 130, 246, 0.15); color: #93c5fd; }
+        .badge.closed { background: #1e293b; color: #94a3b8; }
+        .badge.rejected { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
+        .badge.unauthorized { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+        .badge.low { background: #1e293b; color: #94a3b8; }
+        .badge.medium { background: rgba(245, 158, 11, 0.15); color: #fcd34d; }
+        .badge.high { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
+        .badge.critical { background: #7f1d1d; color: #fff; }
+
+        .inline-actions {
+            display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+        }
+        .inline-actions form { display: inline-flex; gap: 6px; align-items: center; }
+        .inline-actions input[type="text"],
+        .inline-actions input[type="number"] {
+            padding: 6px 10px; border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--bg); color: var(--text);
+            font-size: 12px; font-family: inherit;
+        }
+        .inline-actions input[type="text"] { width: 150px; }
+        .inline-actions input:focus { outline: none; border-color: var(--blue); }
+
+        .alerts-panel {
+            background: linear-gradient(135deg, rgba(127, 29, 29, 0.15), rgba(153, 27, 27, 0.08));
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 12px; padding: 20px; margin-bottom: 24px;
+        }
+        .alerts-panel .section-title { color: #fca5a5; margin-bottom: 14px; }
+        .alerts-panel table { background: transparent; }
+        .alerts-panel th {
+            background: transparent;
+            border-bottom: 1px solid rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+        }
+        .alerts-panel tbody tr { border-bottom: 1px solid rgba(239, 68, 68, 0.1); }
+        .alerts-panel tbody tr:hover { background: rgba(239, 68, 68, 0.05); }
+        .alerts-panel tbody tr:last-child { border-bottom: none; }
+
+        .empty {
+            text-align: center; padding: 40px 20px;
+            color: var(--text-dim); font-size: 13px;
+        }
+        .empty strong {
+            display: block; color: var(--text-muted);
+            margin-bottom: 4px; font-size: 14px;
+        }
+
+        .footer {
+            color: var(--text-dim); font-size: 11px;
+            text-align: center; margin-top: 48px;
+            padding-top: 20px; border-top: 1px solid var(--border);
+            letter-spacing: 0.5px;
+        }
+    </style>
+
+    <!-- Leaflet (map library) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+
+    <div class="topbar">
+        <div class="brand">
+            <div class="brand-mark">KF</div>
+            <div class="brand-text">
+                <h1>K-FLEET SECURE</h1>
+                <div class="sub">Fleet Movement &amp; Security</div>
+            </div>
+        </div>
+        <div class="user-block">
+            {% if data.current_user %}
+            <div class="user-info">
+                <div class="name">{{ data.current_user.full_name }}</div>
+                <div class="role">{{ data.current_user.role.replace("_", " ") }}</div>
+            </div>
+            {% endif %}
+            <a href="/auth/logout" class="signout">Sign out →</a>
+        </div>
+    </div>
+
+    <div class="actions">
+        <a href="/journeys/create-page" class="btn primary">+ New Journey Request</a>
+        <a href="/vehicles/add-page" class="btn secondary">+ Add Vehicle</a>
+        <a href="/drivers/add-page" class="btn secondary">+ Add Driver</a>
+        <a href="/vehicles/qr-codes" class="btn outline">Vehicle QR Codes</a>
+        <a href="/gate" class="btn gold">Open Gate Console</a>
+    </div>
+
+    <div class="metrics">
+        <div class="metric blue">
+            <div class="label">Total Vehicles</div>
+            <div class="value">{{ data.vehicles_total }}</div>
+        </div>
+        <div class="metric green">
+            <div class="label">Parked</div>
+            <div class="value">{{ data.vehicles_parked }}</div>
+        </div>
+        <div class="metric blue">
+            <div class="label">On Journey</div>
+            <div class="value">{{ data.vehicles_on_journey }}</div>
+        </div>
+        <div class="metric red">
+            <div class="label">Overdue</div>
+            <div class="value">{{ data.vehicles_overdue }}</div>
+        </div>
+        <div class="metric amber">
+            <div class="label">Pending Approval</div>
+            <div class="value">{{ data.journeys_pending_approval }}</div>
+        </div>
+        <div class="metric amber">
+            <div class="label">Approved, Not Out</div>
+            <div class="value">{{ data.journeys_approved }}</div>
+        </div>
+        <div class="metric green">
+            <div class="label">Closed Today</div>
+            <div class="value">{{ data.journeys_closed_today }}</div>
+        </div>
+        <div class="metric red">
+            <div class="label">Unresolved Alerts</div>
+            <div class="value">{{ data.unresolved_alerts_count }}</div>
+        </div>
+    </div>
+
+    <details class="section collapsible" id="trackingSection">
+        <summary>
+            <span class="section-title">Live Vehicle Tracking</span>
+            <span class="section-meta" id="mapMeta">Click to expand</span>
+            <span class="chevron">▸</span>
+        </summary>
+        <div class="table-wrap" style="padding:0; margin-top:12px;">
+            <div id="fleetMap" style="height:460px; border-radius:12px; background:#0f172a;"></div>
+        </div>
+    </details>
+
+    {% if data.recent_alerts %}
+    <div class="alerts-panel">
+        <div class="section-title">Security Alerts — Unresolved</div>
+        <div class="table-wrap" style="background:transparent; border:none;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Type</th>
+                        <th>Vehicle</th>
+                        <th>Message</th>
+                        <th>Reported By</th>
+                        <th>Severity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for a in data.recent_alerts %}
+                    <tr>
+                        <td class="sub">{{ a.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+                        <td>{{ a.alert_type.replace("_", " ") }}</td>
+                        <td><strong>{{ a.vehicle.registration_number if a.vehicle else "—" }}</strong></td>
+                        <td>{{ a.message }}</td>
+                        <td>{{ a.reported_by_name or "—" }}</td>
+                        <td><span class="badge {{ a.severity }}">{{ a.severity }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="section">
+        <div class="section-header">
+            <div class="section-title">Fleet Status</div>
+            <div class="section-meta">{{ data.vehicles_total }} vehicles · auto-refresh 30s</div>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Vehicle</th>
+                        <th>Make / Model</th>
+                        <th>Home Station</th>
+                        <th>Status</th>
+                        <th>Journey</th>
+                        <th>Driver</th>
+                        <th>Destination</th>
+                        <th>Expected Return</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for v in data.vehicles %}
+                    <tr>
+                        <td><strong>{{ v.registration_number }}</strong></td>
+                        <td>{{ v.make or "" }} {{ v.model or "" }}</td>
+                        <td>{{ v.home_station or "—" }}</td>
+                        <td><span class="badge {{ v.status }}">{{ v.status.replace("_", " ") }}</span></td>
+                        <td>{% if v.journey_code %}<strong>{{ v.journey_code }}</strong>{% else %}—{% endif %}</td>
+                        <td>{{ v.driver_name or "—" }}</td>
+                        <td>{{ v.destination or "—" }}</td>
+                        <td class="sub">{{ v.expected_return.strftime("%Y-%m-%d %H:%M") if v.expected_return else "—" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <div class="section-title">Live Journey Activity</div>
+            <div class="section-meta">Active + closed today</div>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Vehicle</th>
+                        <th>Driver</th>
+                        <th>Department</th>
+                        <th>Destination</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for j in data.recent_journeys %}
+                    <tr>
+                        <td><strong>{{ j.journey_code }}</strong></td>
+                        <td>{{ j.registration_number or "—" }}</td>
+                        <td>{{ j.driver_name or "—" }}</td>
+                        <td>{{ j.department or "—" }}</td>
+                        <td>{{ j.destination }}</td>
+                        <td><span class="badge {{ j.status }}">{{ j.status }}</span></td>
+                        <td>
+                            <div class="inline-actions">
+                                {% if j.status == "pending" %}
+                                <form method="POST" action="/journeys/{{ j.id }}/approve-page">
+                                    <input type="text" name="remarks" placeholder="Remarks (optional)">
+                                    <button type="submit" class="btn primary small">Approve</button>
+                                </form>
+                                <form method="POST" action="/journeys/{{ j.id }}/reject-page" onsubmit="return confirm('Reject this journey?');">
+                                    <input type="text" name="rejection_reason" placeholder="Reason…" required>
+                                    <button type="submit" class="btn danger small">Reject</button>
+                                </form>
+                                {% elif j.status == "approved" %}
+                                <span style="color:#94a3b8; font-size:12px;">Awaiting gate dispatch</span>
+                                {% elif j.status == "out" %}
+                                <span style="color:#94a3b8; font-size:12px;">Vehicle on journey</span>
+                                {% else %}
+                                <span style="color:#64748b;">—</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not data.recent_journeys %}
+                    <tr>
+                        <td colspan="7">
+                            <div class="empty">
+                                <strong>No active journeys</strong>
+                                Click "+ New Journey Request" above to create the first one.
+                            </div>
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="footer">
+        K-FLEET SECURE · KenGen Digital Fleet Movement &amp; Security Management System
+    </div>
+
+<script>
+(function() {
+    const section = document.getElementById('trackingSection');
+    const mapEl = document.getElementById('fleetMap');
+    const metaEl = document.getElementById('mapMeta');
+    if (!section || !mapEl) return;
+
+    let map = null;
+    let liveTimer = null;
+    let trailTimer = null;
+    const markers = {};
+    const trails = {};
+
+    function iconForVehicle(state) {
+        const color = state === 'overdue' ? '#ef4444'
+                    : state === 'out'     ? '#22c55e'
+                    :                       '#3b82f6';
+        return L.divIcon({
+            className: 'vehicle-marker',
+            html: `<div style="background:${color}; width:18px; height:18px; border-radius:50%; border:3px solid #0f172a; box-shadow:0 0 0 2px ${color}55;"></div>`,
+            iconSize: [18, 18],
+            iconAnchor: [9, 9]
+        });
+    }
+
+    function fmtTime(iso) {
+        if (!iso) return '—';
+        const d = new Date(iso);
+        return isNaN(d) ? iso : d.toLocaleString();
+    }
+
+    async function refreshLive() {
+        if (!map) return;
+        try {
+            const res = await fetch('/tracking/live');
+            if (!res.ok) throw new Error('bad response ' + res.status);
+            const data = await res.json();
+
+            const seen = new Set();
+            data.vehicles.forEach(v => {
+                seen.add(v.vehicle_id);
+                const pos = [v.latitude, v.longitude];
+                const state = v.status || (v.is_out ? 'out' : 'parked');
+
+                const popupHtml = `
+                    <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif; font-size:13px; line-height:1.5; min-width:200px;">
+                        <strong style="font-size:14px;">${v.registration_number}</strong><br>
+                        ${v.make || ''} ${v.model || ''}<br>
+                        <span style="color:${
+                            state === 'overdue' ? '#ef4444' :
+                            state === 'out' ? '#22c55e' : '#94a3b8'
+                        };">● ${state === 'overdue' ? 'OVERDUE' : state === 'out' ? 'On journey' : 'Parked'}</span><br>
+                        ${v.journey_code ? '<b>Journey:</b> ' + v.journey_code + '<br>' : ''}
+                        ${v.driver_name ? '<b>Driver:</b> ' + v.driver_name + '<br>' : ''}
+                        ${v.destination ? '<b>Destination:</b> ' + v.destination + '<br>' : ''}
+                        <b>Speed:</b> ${v.speed != null ? v.speed.toFixed(0) : '—'} km/h<br>
+                        <b>Last seen:</b> ${fmtTime(v.last_seen)}
+                    </div>
+                `;
+
+                if (markers[v.vehicle_id]) {
+                    markers[v.vehicle_id].setLatLng(pos);
+                    markers[v.vehicle_id].setPopupContent(popupHtml);
+                    markers[v.vehicle_id].setIcon(iconForVehicle(state));
+                } else {
+                    markers[v.vehicle_id] = L.marker(pos, {
+                        icon: iconForVehicle(state)
+                    }).addTo(map).bindPopup(popupHtml);
+                }
+            });
+
+            Object.keys(markers).forEach(id => {
+                if (!seen.has(Number(id))) {
+                    map.removeLayer(markers[id]);
+                    delete markers[id];
+                }
+            });
+
+            const allPositions = data.vehicles.map(v => [v.latitude, v.longitude]);
+            if (allPositions.length === 1) {
+                map.setView(allPositions[0], 13);
+            } else if (allPositions.length > 1) {
+                map.fitBounds(L.latLngBounds(allPositions), { padding: [40, 40] });
+            }
+
+            metaEl.textContent = data.count + ' vehicle' + (data.count === 1 ? '' : 's') + ' tracked · updated ' + new Date().toLocaleTimeString();
+        } catch (e) {
+            metaEl.textContent = 'Tracking unavailable — ' + e.message;
+        }
+    }
+
+    async function refreshTrails() {
+        if (!map) return;
+        try {
+            const res = await fetch('/tracking/trails/today');
+            if (!res.ok) return;
+            const data = await res.json();
+            Object.keys(data).forEach(vid => {
+                const pts = data[vid].map(p => [p.lat, p.lng]);
+                if (pts.length < 2) return;
+                if (trails[vid]) {
+                    trails[vid].setLatLngs(pts);
+                } else {
+                    trails[vid] = L.polyline(pts, {
+                        color: '#22c55e',
+                        weight: 3,
+                        opacity: 0.6,
+                        smoothFactor: 1.2,
+                    }).addTo(map);
+                }
+            });
+        } catch (e) {
+            // silent
+        }
+    }
+
+    function initMap() {
+        if (map) return;
+        map = L.map('fleetMap').setView([-0.3, 37.5], 7);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        refreshLive();
+        refreshTrails();
+        liveTimer = setInterval(refreshLive, 30000);
+        trailTimer = setInterval(refreshTrails, 60000);
+    }
+
+    function teardownMap() {
+        if (liveTimer) { clearInterval(liveTimer); liveTimer = null; }
+        if (trailTimer) { clearInterval(trailTimer); trailTimer = null; }
+        if (map) {
+            map.remove();
+            map = null;
+        }
+        // Clear stale references
+        Object.keys(markers).forEach(k => delete markers[k]);
+        Object.keys(trails).forEach(k => delete trails[k]);
+    }
+
+    section.addEventListener('toggle', () => {
+        if (section.open) {
+            metaEl.textContent = 'Loading positions…';
+            // Wait one tick so the container gets its size
+            setTimeout(initMap, 50);
+        } else {
+            teardownMap();
+        }
+    });
+})();
+</script>
+
+</body>
+</html>

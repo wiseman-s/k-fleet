@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K-FLEET Gate</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 16px;
+            font-size: 16px;
+        }
+        .container { max-width: 520px; margin: 0 auto; }
+        h1 { font-size: 22px; margin-bottom: 4px; text-align: center; }
+        .subtitle { color: #94a3b8; font-size: 13px; text-align: center; margin-bottom: 20px; }
+
+        .search-box {
+            background: #1e293b;
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        .search-box input[type="text"] {
+            width: 100%;
+            padding: 16px;
+            font-size: 20px;
+            font-weight: 700;
+            text-align: center;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            border-radius: 8px;
+            border: 2px solid #334155;
+            background: #0f172a;
+            color: #e2e8f0;
+            margin-bottom: 10px;
+        }
+        .search-box input[type="text"]:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 16px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 700;
+            font-size: 16px;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            color: #0f172a;
+            background: #22c55e;
+            margin-top: 8px;
+        }
+        .btn.secondary { background: #3b82f6; color: #fff; }
+        .btn.danger { background: #ef4444; color: #fff; }
+        .btn.gold { background: #eab308; color: #0f172a; }
+        .btn.ghost { background: transparent; color: #94a3b8; border: 1px solid #334155; }
+        .btn:hover { opacity: 0.9; }
+
+        .result {
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 6px solid #475569;
+            margin-bottom: 16px;
+        }
+        .result.approved { border-left-color: #22c55e; }
+        .result.out { border-left-color: #3b82f6; }
+        .result.unauthorized, .result.no_journey, .result.unknown_vehicle { border-left-color: #ef4444; }
+        .result.verify { border-left-color: #eab308; }
+
+        .result h2 { font-size: 18px; margin-bottom: 12px; }
+        .result .row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #243047; font-size: 14px; }
+        .result .row:last-child { border-bottom: none; }
+        .result .row .label { color: #94a3b8; }
+        .result .row .value { font-weight: 600; text-align: right; max-width: 60%; }
+
+        .banner {
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 18px;
+            margin-bottom: 16px;
+        }
+        .banner.green { background: #166534; color: #bbf7d0; }
+        .banner.blue { background: #1e3a8a; color: #bfdbfe; }
+        .banner.red { background: #991b1b; color: #fecaca; }
+        .banner.gold { background: #78350f; color: #fed7aa; }
+
+        fieldset {
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+        legend { padding: 0 8px; color: #94a3b8; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .checklist { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .checklist label { display: flex; align-items: center; gap: 8px; font-size: 15px; }
+        .checklist input[type="checkbox"] { width: 22px; height: 22px; }
+
+        input[type="number"], input[type="text"], select, textarea {
+            width: 100%;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #334155;
+            background: #0f172a;
+            color: #e2e8f0;
+            font-size: 16px;
+            font-family: inherit;
+        }
+        label.field { display: block; color: #94a3b8; font-size: 13px; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .footer { color: #64748b; font-size: 12px; text-align: center; margin-top: 24px; }
+        .footer a { color: #94a3b8; text-decoration: none; }
+
+        #scanOverlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 9999;
+            padding: 20px;
+            text-align: center;
+        }
+        #scanVideo {
+            width: 100%;
+            max-width: 500px;
+            border-radius: 12px;
+            margin-top: 40px;
+            background: #000;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <div id="offlineBanner" style="display:none; background:#7f1d1d; color:#fecaca; padding:10px; border-radius:8px; text-align:center; font-weight:600; margin-bottom:12px;">
+        ⚠ Offline mode — actions will be saved and synced when network returns
+    </div>
+    <div id="pendingBanner" style="display:none; background:#78350f; color:#fed7aa; padding:10px; border-radius:8px; text-align:center; font-weight:600; margin-bottom:12px;">
+        📦 Pending sync: <span id="pendingCount">0</span> action(s)
+        <button onclick="window.__kfleetSync && window.__kfleetSync()" style="margin-left:10px; padding:4px 10px; font-size:12px; background:#eab308; color:#0f172a; border:none; border-radius:4px; font-weight:700; cursor:pointer;">Sync now</button>
+    </div>
+    <div id="cacheBanner" style="display:none; background:#1e3a8a; color:#bfdbfe; padding:10px; border-radius:8px; text-align:center; font-weight:600; margin-bottom:12px;">
+        📥 Vehicle cache ready — <span id="cacheCount">0</span> vehicles available offline
+    </div>
+
+    <h1>K-FLEET GATE</h1>
+    <div class="subtitle">
+        {% if current_user and current_user.gate %}
+        {{ current_user.gate.name }}
+        {% else %}
+        Vehicle Movement Control
+        {% endif %}
+    </div>
+
+    <div class="search-box">
+        <form method="GET" action="/gate/lookup" id="lookupForm">
+            <input type="text" name="plate" id="plateInput" placeholder="KAA 123X" autofocus autocomplete="off">
+            <button type="submit" class="btn secondary">Look Up Vehicle</button>
+        </form>
+        <button type="button" id="scanBtn" class="btn gold">📷 Scan QR Code</button>
+    </div>
+
+    <div id="scanOverlay">
+        <video id="scanVideo" autoplay playsinline></video>
+        <p style="color:#cbd5e1; margin-top:16px;">Point the camera at the vehicle QR code</p>
+        <button type="button" id="scanCancel" class="btn danger" style="max-width:300px; margin:20px auto 0;">Cancel</button>
+        <p id="scanStatus" style="color:#94a3b8; margin-top:12px; font-size:13px;"></p>
+    </div>
+
+    <div id="offlineResult"></div>
+
+    {% if state == "unknown_vehicle" %}
+    <div class="banner red">VEHICLE NOT FOUND</div>
+    <div class="result unauthorized">
+        <p>No vehicle with registration <strong>{{ plate }}</strong> exists in the fleet.</p>
+    </div>
+    <div class="result unauthorized">
+        <h2>Record Unauthorized Attempt</h2>
+        <form method="POST" action="/gate/unauthorized">
+            <input type="hidden" name="plate" value="{{ plate }}">
+            <label class="field">Your Name</label>
+            <input type="text" name="reported_by_name" required>
+            <label class="field" style="margin-top:8px;">Your Staff Number</label>
+            <input type="text" name="reported_by_staff_number">
+            <label class="field" style="margin-top:8px;">Reason / Notes</label>
+            <input type="text" name="reason" placeholder="e.g. Unknown vehicle at gate">
+            <button type="submit" class="btn danger">Record Alert</button>
+        </form>
+    </div>
+
+    {% elif state == "no_journey" %}
+    <div class="banner red">NOT AUTHORIZED</div>
+    <div class="result unauthorized">
+        <div class="row"><span class="label">Vehicle</span><span class="value">{{ vehicle.registration_number }}</span></div>
+        <div class="row"><span class="label">Make / Model</span><span class="value">{{ vehicle.make or "" }} {{ vehicle.model or "" }}</span></div>
+        <div class="row"><span class="label">Home Station</span><span class="value">{{ vehicle.home_station.name if vehicle.home_station else "—" }}</span></div>
+        <div class="row"><span class="label">Status</span><span class="value">No approved journey</span></div>
+    </div>
+    <div class="result unauthorized">
+        <h2>Record Unauthorized Attempt</h2>
+        <form method="POST" action="/gate/unauthorized">
+            <input type="hidden" name="plate" value="{{ vehicle.registration_number }}">
+            <label class="field">Your Name</label>
+            <input type="text" name="reported_by_name" required>
+            <label class="field" style="margin-top:8px;">Your Staff Number</label>
+            <input type="text" name="reported_by_staff_number">
+            <label class="field" style="margin-top:8px;">Reason / Notes</label>
+            <input type="text" name="reason" placeholder="e.g. Driver claims urgent delivery">
+            <button type="submit" class="btn danger">Record Alert</button>
+        </form>
+    </div>
+
+    {% elif state == "approved" %}
+    <div class="banner {% if is_home %}green{% else %}gold{% endif %}">
+        {% if is_home %}AUTHORIZED FOR EXIT{% else %}VERIFY ONLY — NOT THE HOME GATE{% endif %}
+    </div>
+    <div class="result {% if is_home %}approved{% else %}verify{% endif %}">
+        <div class="row"><span class="label">Journey</span><span class="value">{{ journey.journey_code }}</span></div>
+        <div class="row"><span class="label">Vehicle</span><span class="value">{{ vehicle.registration_number }}</span></div>
+        <div class="row"><span class="label">Driver</span><span class="value">{{ journey.driver.full_name if journey.driver else "—" }}</span></div>
+        <div class="row"><span class="label">Department</span><span class="value">{{ journey.requesting_department.name if journey.requesting_department else "—" }}</span></div>
+        <div class="row"><span class="label">Destination</span><span class="value">{{ journey.destination }}</span></div>
+        <div class="row"><span class="label">Home Station</span><span class="value">{{ journey.origin_station.name if journey.origin_station else "—" }}</span></div>
+    </div>
+
+    {% if can_act %}
+    <form method="POST" action="/gate/exit">
+        <input type="hidden" name="journey_id" value="{{ journey.id }}">
+        <label class="field">Starting Odometer (km)</label>
+        <input type="number" name="starting_odometer" required placeholder="e.g. 124532">
+        <fieldset style="margin-top:12px;">
+            <legend>Vehicle Inspection</legend>
+            <div class="checklist">
+                <label><input type="checkbox" name="spare_wheel" value="yes"> Spare Wheel</label>
+                <label><input type="checkbox" name="wheel_spanner" value="yes"> Wheel Spanner</label>
+                <label><input type="checkbox" name="jack" value="yes"> Jack</label>
+                <label><input type="checkbox" name="lock_chain" value="yes"> Lock Chain</label>
+                <label><input type="checkbox" name="vhf_radio" value="yes"> VHF Radio</label>
+            </div>
+        </fieldset>
+        <label class="field">Fuel Level</label>
+        <select name="fuel_level">
+            <option value="">—</option>
+            <option value="full">Full</option>
+            <option value="three_quarter">Three Quarter</option>
+            <option value="half">Half</option>
+            <option value="quarter">Quarter</option>
+            <option value="empty">Empty</option>
+        </select>
+        <fieldset style="margin-top:12px;">
+            <legend>Damage Report</legend>
+            <label><input type="checkbox" name="damage_reported" value="yes"> Report damage on departure</label>
+            <textarea name="damage_description" rows="2" placeholder="Describe any damage" style="margin-top:8px;"></textarea>
+        </fieldset>
+        <button type="submit" class="btn">CONFIRM EXIT</button>
+    </form>
+    {% else %}
+    <div class="banner gold" style="font-size:14px; line-height:1.5;">
+        This vehicle's journey originates at
+        <strong>{{ journey.origin_station.name if journey.origin_station else "another station" }}</strong>.<br>
+        Only the home gate can record exit or return.
+    </div>
+    <a href="/gate" class="btn ghost">Clear</a>
+    {% endif %}
+
+    {% elif state == "out" %}
+    <div class="banner {% if is_home %}blue{% else %}gold{% endif %}">
+        {% if is_home %}VEHICLE IS OUT — RECORD RETURN{% else %}VERIFY ONLY — NOT THE HOME GATE{% endif %}
+    </div>
+    <div class="result {% if is_home %}out{% else %}verify{% endif %}">
+        <div class="row"><span class="label">Journey</span><span class="value">{{ journey.journey_code }}</span></div>
+        <div class="row"><span class="label">Vehicle</span><span class="value">{{ vehicle.registration_number }}</span></div>
+        <div class="row"><span class="label">Driver</span><span class="value">{{ journey.driver.full_name if journey.driver else "—" }}</span></div>
+        <div class="row"><span class="label">Destination</span><span class="value">{{ journey.destination }}</span></div>
+        <div class="row"><span class="label">Home Station</span><span class="value">{{ journey.origin_station.name if journey.origin_station else "—" }}</span></div>
+        <div class="row"><span class="label">Left At</span><span class="value">{{ journey.actual_departure.strftime("%Y-%m-%d %H:%M") if journey.actual_departure else "—" }}</span></div>
+    </div>
+
+    {% if can_act %}
+    <form method="POST" action="/gate/return">
+        <input type="hidden" name="journey_id" value="{{ journey.id }}">
+        <label class="field">Ending Odometer (km)</label>
+        <input type="number" name="ending_odometer" required placeholder="e.g. 124681">
+        <label class="field" style="margin-top:12px;">Fuel Level</label>
+        <select name="fuel_level">
+            <option value="">—</option>
+            <option value="full">Full</option>
+            <option value="three_quarter">Three Quarter</option>
+            <option value="half">Half</option>
+            <option value="quarter">Quarter</option>
+            <option value="empty">Empty</option>
+        </select>
+        <fieldset style="margin-top:12px;">
+            <legend>Damage Report on Return</legend>
+            <label><input type="checkbox" name="damage_reported" value="yes"> Report damage on return</label>
+            <textarea name="damage_description" rows="2" placeholder="Describe any damage" style="margin-top:8px;"></textarea>
+        </fieldset>
+        <button type="submit" class="btn">CONFIRM RETURN</button>
+    </form>
+    {% else %}
+    <div class="banner gold" style="font-size:14px; line-height:1.5;">
+        This vehicle's journey originates at
+        <strong>{{ journey.origin_station.name if journey.origin_station else "another station" }}</strong>.<br>
+        Only the home gate can record exit or return.
+    </div>
+    <a href="/gate" class="btn ghost">Clear</a>
+    {% endif %}
+    {% endif %}
+
+    <a href="/gate" class="btn ghost" style="margin-top:16px;">Clear</a>
+
+    <div class="footer">
+        K-FLEET SECURE · Gate Control<br>
+        {% if current_user %}{{ current_user.full_name }} · {% endif %}
+        <a href="/gate/logout">Sign out</a>
+    </div>
+</div>
+
+<script>
+(function() {
+    const QUEUE_KEY = 'kfleet_pending';
+    const CACHE_KEY = 'kfleet_vehicle_cache';
+    const offlineBanner = document.getElementById('offlineBanner');
+    const pendingBanner = document.getElementById('pendingBanner');
+    const pendingCountEl = document.getElementById('pendingCount');
+    const cacheBanner = document.getElementById('cacheBanner');
+    const cacheCountEl = document.getElementById('cacheCount');
+    const offlineResult = document.getElementById('offlineResult');
+    const lookupForm = document.getElementById('lookupForm');
+    const plateInput = document.getElementById('plateInput');
+
+    function readQueue() {
+        try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch (e) { return []; }
+    }
+    function writeQueue(q) {
+        localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
+        refreshPendingUI();
+    }
+    function enqueue(action) {
+        const q = readQueue();
+        action.id = Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+        action.timestamp = new Date().toISOString();
+        q.push(action);
+        writeQueue(q);
+    }
+    function refreshPendingUI() {
+        const q = readQueue();
+        if (q.length > 0) {
+            pendingCountEl.textContent = q.length;
+            pendingBanner.style.display = 'block';
+        } else {
+            pendingBanner.style.display = 'none';
+        }
+    }
+    function readCache() {
+        try { return JSON.parse(localStorage.getItem(CACHE_KEY) || '{"vehicles":[]}'); } catch (e) { return {vehicles: []}; }
+    }
+    function writeCache(data) {
+        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+        refreshCacheUI();
+    }
+    function refreshCacheUI() {
+        const cache = readCache();
+        const n = (cache.vehicles || []).length;
+        if (n > 0) {
+            cacheCountEl.textContent = n;
+            cacheBanner.style.display = 'block';
+            setTimeout(() => { cacheBanner.style.display = 'none'; }, 5000);
+        }
+    }
+    function findInCache(plate) {
+        const norm = plate.replace(/\s+/g, '').toUpperCase();
+        const cache = readCache();
+        return (cache.vehicles || []).find(v =>
+            (v.registration_number || '').replace(/\s+/g, '').toUpperCase() === norm
+        );
+    }
+    async function preloadCache() {
+        if (!navigator.onLine) return;
+        try {
+            const res = await fetch('/gate/cache');
+            if (!res.ok) return;
+            const data = await res.json();
+            writeCache(data);
+        } catch (e) { console.warn('Cache preload failed', e); }
+    }
+    function refreshOnlineStatus() {
+        offlineBanner.style.display = navigator.onLine ? 'none' : 'block';
+    }
+    async function syncQueue() {
+        const q = readQueue();
+        if (q.length === 0) return;
+        if (!navigator.onLine) return;
+        try {
+            const res = await fetch('/gate/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ actions: q })
+            });
+            if (!res.ok) throw new Error('sync failed');
+            const result = await res.json();
+            localStorage.setItem(QUEUE_KEY, '[]');
+            refreshPendingUI();
+            const banner = document.createElement('div');
+            banner.style.cssText = 'background:#166534; color:#bbf7d0; padding:10px; border-radius:8px; text-align:center; font-weight:600; margin-bottom:12px;';
+            banner.textContent = `Synced ${result.applied} action(s)${result.failed > 0 ? `, ${result.failed} failed` : ''}`;
+            document.querySelector('.container').insertBefore(banner, document.querySelector('.container').firstChild);
+            setTimeout(() => banner.remove(), 4000);
+            preloadCache();
+        } catch (e) { console.warn('Sync failed; will retry', e); }
+    }
+
+    lookupForm.addEventListener('submit', (event) => {
+        if (navigator.onLine) return;
+        event.preventDefault();
+        const plate = plateInput.value.trim();
+        if (!plate) return;
+        renderOfflineResult(plate);
+    });
+
+    function renderOfflineResult(plate) {
+        const entry = findInCache(plate);
+        offlineResult.innerHTML = '';
+        if (!entry) {
+            offlineResult.innerHTML = `
+                <div class="banner red">NOT IN LOCAL CACHE</div>
+                <div class="result unauthorized">
+                    <p>Vehicle <strong>${escapeHtml(plate)}</strong> is not in the phone's cache.</p>
+                    <p style="color:#94a3b8; font-size:13px; margin-top:8px;">You can record the movement anyway. It will sync when the network returns.</p>
+                </div>
+                ${manualEntryForm(plate)}
+            `;
+            return;
+        }
+        if (!entry.journey) {
+            offlineResult.innerHTML = `
+                <div class="banner red">NOT AUTHORIZED (offline)</div>
+                <div class="result unauthorized">
+                    <div class="row"><span class="label">Vehicle</span><span class="value">${escapeHtml(entry.registration_number)}</span></div>
+                    <div class="row"><span class="label">Make / Model</span><span class="value">${escapeHtml((entry.make||'') + ' ' + (entry.model||''))}</span></div>
+                    <div class="row"><span class="label">Home Station</span><span class="value">${escapeHtml(entry.home_station || '—')}</span></div>
+                </div>
+                ${manualEntryForm(entry.registration_number, true)}
+            `;
+            return;
+        }
+        const j = entry.journey;
+        if (j.status === 'approved') {
+            offlineResult.innerHTML = `
+                <div class="banner green">AUTHORIZED FOR EXIT (offline)</div>
+                <div class="result approved">
+                    <div class="row"><span class="label">Journey</span><span class="value">${escapeHtml(j.code)}</span></div>
+                    <div class="row"><span class="label">Vehicle</span><span class="value">${escapeHtml(entry.registration_number)}</span></div>
+                    <div class="row"><span class="label">Driver</span><span class="value">${escapeHtml(j.driver_name || '—')}</span></div>
+                    <div class="row"><span class="label">Department</span><span class="value">${escapeHtml(j.department || '—')}</span></div>
+                    <div class="row"><span class="label">Destination</span><span class="value">${escapeHtml(j.destination || '')}</span></div>
+                </div>
+                ${exitForm(entry.registration_number, j.id)}
+            `;
+        } else if (j.status === 'out') {
+            offlineResult.innerHTML = `
+                <div class="banner blue">VEHICLE IS OUT (offline)</div>
+                <div class="result out">
+                    <div class="row"><span class="label">Journey</span><span class="value">${escapeHtml(j.code)}</span></div>
+                    <div class="row"><span class="label">Vehicle</span><span class="value">${escapeHtml(entry.registration_number)}</span></div>
+                    <div class="row"><span class="label">Driver</span><span class="value">${escapeHtml(j.driver_name || '—')}</span></div>
+                    <div class="row"><span class="label">Destination</span><span class="value">${escapeHtml(j.destination || '')}</span></div>
+                </div>
+                ${returnForm(entry.registration_number, j.id)}
+            `;
+        } else {
+            offlineResult.innerHTML = `
+                <div class="banner red">NO ACTIVE JOURNEY (offline)</div>
+                ${manualEntryForm(entry.registration_number, true)}
+            `;
+        }
+    }
+
+    function manualEntryForm(plate, canReturn) {
+        return `
+            <div class="result unauthorized">
+                <h2>Record Movement (offline)</h2>
+                <form data-offline="manual">
+                    <input type="hidden" name="plate" value="${escapeHtml(plate)}">
+                    <label class="field">Movement Type</label>
+                    <select name="movement_type">
+                        <option value="exit">Exit</option>
+                        <option value="return" ${canReturn ? '' : 'disabled'}>Return</option>
+                        <option value="unauthorized">Unauthorized</option>
+                    </select>
+                    <label class="field" style="margin-top:8px;">Odometer (if exit or return)</label>
+                    <input type="number" name="odometer" placeholder="e.g. 124532">
+                    <label class="field" style="margin-top:8px;">Your Name</label>
+                    <input type="text" name="reported_by_name" required>
+                    <label class="field" style="margin-top:8px;">Your Staff Number</label>
+                    <input type="text" name="reported_by_staff_number">
+                    <label class="field" style="margin-top:8px;">Notes</label>
+                    <input type="text" name="reason" placeholder="Optional notes">
+                    <button type="submit" class="btn gold">Save Offline</button>
+                </form>
+            </div>
+        `;
+    }
+    function exitForm(plate, journeyId) {
+        return `
+            <form data-offline="exit">
+                <input type="hidden" name="journey_id" value="${journeyId}">
+                <input type="hidden" name="plate" value="${escapeHtml(plate)}">
+                <label class="field">Starting Odometer (km)</label>
+                <input type="number" name="starting_odometer" required>
+                <label class="field" style="margin-top:8px;">Fuel Level</label>
+                <select name="fuel_level">
+                    <option value="">—</option>
+                    <option value="full">Full</option>
+                    <option value="three_quarter">Three Quarter</option>
+                    <option value="half">Half</option>
+                    <option value="quarter">Quarter</option>
+                    <option value="empty">Empty</option>
+                </select>
+                <button type="submit" class="btn">CONFIRM EXIT (offline)</button>
+            </form>
+        `;
+    }
+    function returnForm(plate, journeyId) {
+        return `
+            <form data-offline="return">
+                <input type="hidden" name="journey_id" value="${journeyId}">
+                <input type="hidden" name="plate" value="${escapeHtml(plate)}">
+                <label class="field">Ending Odometer (km)</label>
+                <input type="number" name="ending_odometer" required>
+                <label class="field" style="margin-top:8px;">Fuel Level</label>
+                <select name="fuel_level">
+                    <option value="">—</option>
+                    <option value="full">Full</option>
+                    <option value="three_quarter">Three Quarter</option>
+                    <option value="half">Half</option>
+                    <option value="quarter">Quarter</option>
+                    <option value="empty">Empty</option>
+                </select>
+                <button type="submit" class="btn">CONFIRM RETURN (offline)</button>
+            </form>
+        `;
+    }
+
+    document.addEventListener('submit', (event) => {
+        const form = event.target;
+        if (!form.dataset.offline) return;
+        event.preventDefault();
+        const type = form.dataset.offline;
+        const data = new FormData(form);
+        const payload = { action: '/gate/' + (type === 'manual' ? 'unauthorized' : type) };
+        if (type === 'manual') {
+            const mt = data.get('movement_type');
+            if (mt === 'exit') payload.action = '/gate/exit';
+            else if (mt === 'return') payload.action = '/gate/return';
+            else payload.action = '/gate/unauthorized';
+            if (data.get('odometer')) {
+                payload.starting_odometer = data.get('odometer');
+                payload.ending_odometer = data.get('odometer');
+            }
+        }
+        for (const [k, v] of data.entries()) {
+            if (!(k in payload)) payload[k] = v;
+        }
+        enqueue(payload);
+        offlineResult.innerHTML = `
+            <div class="banner" style="background:#78350f; color:#fed7aa;">Saved offline — will sync when network returns</div>
+        `;
+    });
+
+    function escapeHtml(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    window.addEventListener('online', () => { refreshOnlineStatus(); syncQueue(); preloadCache(); });
+    window.addEventListener('offline', refreshOnlineStatus);
+    setInterval(syncQueue, 20000);
+
+    refreshOnlineStatus();
+    refreshPendingUI();
+    refreshCacheUI();
+    preloadCache();
+    syncQueue();
+
+    window.__kfleetSync = syncQueue;
+})();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/static/sw.js', { scope: '/' })
+            .then((reg) => console.log('Service worker registered:', reg.scope))
+            .catch((err) => console.warn('Service worker registration failed:', err));
+    });
+}
+</script>
+
+<script>
+(function() {
+    const scanBtn = document.getElementById('scanBtn');
+    const overlay = document.getElementById('scanOverlay');
+    const video = document.getElementById('scanVideo');
+    const cancelBtn = document.getElementById('scanCancel');
+    const status = document.getElementById('scanStatus');
+    let stream = null;
+    let detector = null;
+    let rafId = null;
+
+    async function startScan() {
+        overlay.style.display = 'block';
+        status.textContent = 'Starting camera…';
+        if (!('BarcodeDetector' in window)) {
+            status.textContent = 'This browser does not support in-app scanning. Please type the plate number, or scan the QR with your phone camera app.';
+            return;
+        }
+        try {
+            detector = new BarcodeDetector({ formats: ['qr_code'] });
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            video.srcObject = stream;
+            status.textContent = 'Scanning…';
+            tick();
+        } catch (err) {
+            status.textContent = 'Camera access denied. Please allow camera, or type the plate number.';
+            console.error(err);
+        }
+    }
+    async function tick() {
+        if (!video.videoWidth) { rafId = requestAnimationFrame(tick); return; }
+        try {
+            const codes = await detector.detect(video);
+            if (codes && codes.length > 0) {
+                const raw = codes[0].rawValue || '';
+                stopScan();
+                window.location.href = '/gate/lookup?plate=' + encodeURIComponent(raw);
+                return;
+            }
+        } catch (err) {}
+        rafId = requestAnimationFrame(tick);
+    }
+    function stopScan() {
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = null;
+        if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+        overlay.style.display = 'none';
+    }
+    scanBtn.addEventListener('click', startScan);
+    cancelBtn.addEventListener('click', stopScan);
+})();
+</script>
+</body>
+</html>
