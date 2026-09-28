@@ -223,3 +223,126 @@ def all_trails_today(
         ]
 
     return result
+
+
+# ---------------------------------------------------------------------
+# Ingest endpoint — used by Traccar's forwarder (running on the laptop)
+# to push positions to K-FLEET running in the cloud.
+# ---------------------------------------------------------------------
+
+from fastapi import Request
+from datetime import datetime
+from app.models.vehicle import Vehicle
+from app.models.gps_event import GpsEvent
+from app.models.journey import Journey
+from sqlalchemy import desc
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+@router.post("/ingest")
+async def ingest_position(request: Request, db: Session = Depends(get_db)):
+    """Receive a position from Traccar's forwarder.
+
+    Traccar's `forward.type=json` sends a payload like:
+    {
+      "position": {
+        "deviceId": 1, "protocol": "osmand",
+        "deviceTime": "2026-09-28T11:50:25.000+00:00",
+        "fixTime": "...", "valid": true,
+        "latitude": -0.9218, "longitude": 36.9686,
+        "altitude": 1694.1, "speed": 0.0, "course": 0.0,
+        "accuracy": 20.0, ...
+      },
+      "device": {
+        "id": 1, "name": "KAA 123X", "uniqueId": "KAA123X",
+        ...
+      }
+    }
+
+    We match the device's uniqueId to a vehicle's traccar_device_id,
+    and store a GpsEvent. If the vehicle has an active journey ("out"),
+    the event is linked to that journey.
+    """
+    try:
+        payload = await request.json()
+    except Exception as e:
+        logger.warning("ingest: bad JSON payload: %s", e)
+        return {"status": "error", "reason": "invalid json"}
+
+    # Traccar's JSON forwarder can send {position: {...}, device: {...}}
+    # or just a position object, depending on version. Handle both.
+    position = payload.get("position") if isinstance(payload, dict) else None
+    device = payload.get("device") if isinstance(payload, dict) else None
+
+    if position is None:
+        # Fall back to treating the whole body as the position
+        position = payload
+
+    unique_id = None
+    if device:
+        unique_id = device.get("uniqueId") or device.get("name")
+    if not unique_id:
+        # Some forwarders include only deviceId; look it up via Traccar API?
+        # For MVP, we require uniqueId.
+        unique_id = str(position.get("deviceId")) if position.get("deviceId") else None
+
+    if not unique_id:
+        return {"status": "error", "reason": "no device identifier"}
+
+    # Match to a vehicle
+    vehicle = (
+        db.query(Vehicle)
+        .filter(Vehicle.traccar_device_id == unique_id)
+        .first()
+    )
+    if not vehicle:
+        logger.info("ingest: no vehicle matches device %s", unique_id)
+        return {"status": "ignored", "reason": f"no vehicle for {unique_id}"}
+
+    # Parse timestamps
+    device_time = None
+    raw_time = position.get("deviceTime") or position.get("fixTime")
+    if raw_time:
+        try:
+            device_time = datetime.fromisoformat(raw_time.replace("Z", "+00:00"))
+        except Exception:
+            device_time = None
+
+    # Skip duplicates
+    if device_time:
+        existing = (
+            db.query(GpsEvent)
+            .filter(
+                GpsEvent.vehicle_id == vehicle.id,
+                GpsEvent.device_time == device_time,
+            )
+            .first()
+        )
+        if existing:
+            return {"status": "duplicate"}
+
+    # Find active journey
+    active = (
+        db.query(Journey)
+        .filter(Journey.vehicle_id == vehicle.id, Journey.status == "out")
+        .order_by(desc(Journey.created_at))
+        .first()
+    )
+
+    event = GpsEvent(
+        vehicle_id=vehicle.id,
+        journey_id=active.id if active else None,
+        latitude=position.get("latitude"),
+        longitude=position.get("longitude"),
+        altitude=position.get("altitude"),
+        speed=position.get("speed"),
+        course=position.get("course"),
+        accuracy=position.get("accuracy"),
+        device_time=device_time,
+    )
+    db.add(event)
+    db.commit()
+
+    return {"status": "stored", "vehicle": vehicle.registration_number, "event_id": event.id}
