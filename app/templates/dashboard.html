@@ -350,6 +350,7 @@
                         <th>Message</th>
                         <th>Reported By</th>
                         <th>Severity</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -361,6 +362,56 @@
                         <td>{{ a.message }}</td>
                         <td>{{ a.reported_by_name or "—" }}</td>
                         <td><span class="badge {{ a.severity }}">{{ a.severity }}</span></td>
+                        <td>
+                            <form method="POST" action="/alerts/{{ a.id }}/resolve-page" style="display:flex; gap:6px; align-items:center;">
+                                <input type="text" name="resolution_notes" placeholder="Notes…" style="padding:5px 8px; font-size:12px; width:140px; border-radius:5px; border:1px solid #334155; background:#0b1220; color:#e2e8f0;">
+                                <button type="submit" class="btn primary small" style="padding:5px 10px; font-size:11px;">Resolve</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if data.pending_requests %}
+    <div class="section">
+        <div class="section-header">
+            <div class="section-title">Pending Vehicle Requests</div>
+            <div class="section-meta">{{ data.pending_requests_count }} awaiting assignment</div>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Department</th>
+                        <th>Requested By</th>
+                        <th>Origin → Destination</th>
+                        <th>Purpose</th>
+                        <th>Priority</th>
+                        <th>Departure</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in data.pending_requests %}
+                    <tr>
+                        <td><strong>{{ r.journey_code }}</strong></td>
+                        <td>{{ r.department or "—" }}</td>
+                        <td>{{ r.requested_by }}</td>
+                        <td>{{ r.origin_station or "—" }} → {{ r.destination }}</td>
+                        <td>{{ r.purpose }}</td>
+                        <td><span class="badge {{ 'overdue' if r.priority == 'urgent' else 'parked' }}">{{ r.priority }}</span></td>
+                        <td class="sub">{{ r.expected_departure.strftime("%Y-%m-%d %H:%M") if r.expected_departure else "—" }}</td>
+                        <td>
+                            <div class="inline-actions">
+                                <a href="/journeys/{{ r.id }}/assign-page" class="btn primary small">Assign</a>
+                                <a href="/journeys/{{ r.id }}/history" class="btn outline small">History</a>
+                            </div>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -451,6 +502,8 @@
                                 {% else %}
                                 <span style="color:#64748b;">—</span>
                                 {% endif %}
+
+                                <a href="/journeys/{{ j.id }}/history" class="btn outline small" title="View audit trail">History</a>
                             </div>
                         </td>
                     </tr>

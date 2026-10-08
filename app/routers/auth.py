@@ -8,6 +8,7 @@ from app.core.security import hash_password, verify_password, create_access_toke
 from app.models.user import User
 from app.schemas.user import UserCreate, UserOut
 
+
 router = APIRouter(prefix="/auth", tags=["Auth"])
 templates = Jinja2Templates(directory="app/templates")
 
@@ -42,7 +43,9 @@ def login(
         return templates.TemplateResponse(
             request=request,
             name="office_login.html",
-            context={"error": "Gate accounts cannot access the office system. Use the gate app."},
+            context={
+                "error": "Gate accounts cannot access the office system. Use the gate app."
+            },
             status_code=403
         )
 
@@ -54,7 +57,10 @@ def login(
             status_code=403
         )
 
-    token = create_access_token({"sub": str(user.id), "role": user.role})
+    token = create_access_token({
+        "sub": str(user.id),
+        "role": user.role
+    })
 
     response = RedirectResponse(url="/dashboard", status_code=303)
     response.set_cookie(
@@ -79,26 +85,52 @@ def me(current_user: User = Depends(get_current_user)):
     return current_user
 
 
-@router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
-def register_first_admin(user_data: UserCreate, db: Session = Depends(get_db)):
-    existing = db.query(User).filter(User.staff_number == user_data.staff_number).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Staff number already registered")
+@router.post(
+    "/register",
+    response_model=UserOut,
+    status_code=status.HTTP_201_CREATED
+)
+def register_first_admin(
+    user_data: UserCreate,
+    db: Session = Depends(get_db)
+):
+    """User registration.
 
+    Only works on a completely empty database (before the seed runs).
+    In practice, registration is closed — the seed script creates all users on startup.
+    New users are added by editing the seed script and redeploying.
+    """
     total = db.query(User).count()
-    role = "admin" if total == 0 else user_data.role
+
+    if total > 0:
+        raise HTTPException(
+            status_code=403,
+            detail="Registration is closed. Contact an administrator.",
+        )
+
+    existing = db.query(User).filter(
+        User.staff_number == user_data.staff_number
+    ).first()
+
+    if existing:
+        raise HTTPException(
+            status_code=400,
+            detail="Staff number already registered"
+        )
 
     new_user = User(
         staff_number=user_data.staff_number,
         full_name=user_data.full_name,
         email=user_data.email,
         phone=user_data.phone,
-        role=role,
+        role="admin",
         station_id=user_data.station_id,
         driver_id=user_data.driver_id,
         password_hash=hash_password(user_data.password),
     )
+
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+
     return new_user

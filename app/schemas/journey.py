@@ -6,8 +6,8 @@ from app.schemas.department import DepartmentOut
 
 
 class JourneyBase(BaseModel):
-    vehicle_id: int
-    driver_id: int
+    vehicle_id: Optional[int] = None
+    driver_id: Optional[int] = None
     requesting_department_id: int
     requested_by_name: str
     requested_by_staff_number: Optional[str] = None

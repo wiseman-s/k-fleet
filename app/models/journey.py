@@ -13,13 +13,14 @@ class Journey(Base):
     journey_code = Column(String, unique=True, index=True, nullable=False)
 
     # Assignment
-    vehicle_id = Column(Integer, ForeignKey("vehicles.id"), nullable=False)
-    driver_id = Column(Integer, ForeignKey("drivers.id"), nullable=False)
+    vehicle_id = Column(Integer, ForeignKey("vehicles.id"), nullable=True)
+    driver_id = Column(Integer, ForeignKey("drivers.id"), nullable=True)
 
     # Requesting side
     requesting_department_id = Column(Integer, ForeignKey("departments.id"), nullable=False)
     requested_by_name = Column(String, nullable=False)
     requested_by_staff_number = Column(String, nullable=True)
+    requested_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     # Route
     origin_station_id = Column(Integer, ForeignKey("stations.id"), nullable=False)

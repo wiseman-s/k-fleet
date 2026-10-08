@@ -17,6 +17,8 @@ from app.models.user import User
 from app.models.gate import Gate
 from app.models.gate_transaction import GateTransaction
 from app.models.security_alert import SecurityAlert
+from app.services.audit import log_journey_action
+from app.services.odometer import check_odometer
 
 router = APIRouter(prefix="/gate", tags=["Gate"])
 
@@ -343,6 +345,15 @@ def gate_unauthorized(
         notes=f"{vehicle.registration_number}: {reason or 'no reason given'}"
     )
 
+    # Audit unauthorized attempt
+    log_journey_action(
+        db,
+        journey,
+        current_user,
+        "unauthorized_attempt",
+        remarks=f"Plate: {plate}, reason: {reason or 'not specified'}"
+    )
+
     db.commit()
 
     return RedirectResponse(url="/gate", status_code=303)
@@ -392,6 +403,20 @@ def gate_exit(
             existing + " | " + inspection_summary
         ).strip(" |")
 
+        # Odometer anomaly check
+        vehicle = db.query(Vehicle).filter(
+            Vehicle.id == journey.vehicle_id
+        ).first()
+
+        if vehicle:
+            check_odometer(
+                db,
+                vehicle,
+                journey,
+                starting_odometer,
+                context="exit"
+            )
+
         record_transaction(
             db,
             current_user,
@@ -399,6 +424,15 @@ def gate_exit(
             "exit",
             odometer=starting_odometer,
             notes=f"Gate: {current_user.gate.name if current_user.gate else 'unknown'}"
+        )
+
+        # Audit journey exit
+        log_journey_action(
+            db,
+            journey,
+            current_user,
+            "exit",
+            remarks=f"Odometer: {starting_odometer}"
         )
 
         db.commit()
@@ -451,7 +485,15 @@ def gate_return(
             .first()
         )
 
+        # Odometer anomaly check
         if vehicle:
+            check_odometer(
+                db,
+                vehicle,
+                journey,
+                ending_odometer,
+                context="return"
+            )
             vehicle.current_odometer = ending_odometer
 
         record_transaction(
@@ -461,6 +503,15 @@ def gate_return(
             "return",
             odometer=ending_odometer,
             notes=f"Gate: {current_user.gate.name if current_user.gate else 'unknown'}"
+        )
+
+        # Audit journey return
+        log_journey_action(
+            db,
+            journey,
+            current_user,
+            "return",
+            remarks=f"Odometer: {ending_odometer}, distance: {journey.distance_km} km"
         )
 
         db.commit()

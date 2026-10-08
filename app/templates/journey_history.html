@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Journey {{ journey.journey_code }} — History</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+            background: #0a1120; color: #e6edf7; padding: 28px;
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 { font-size: 22px; margin-bottom: 6px; }
+        .subtitle { color: #8b98ad; font-size: 14px; margin-bottom: 28px; }
+        .card {
+            background: #131c31; border: 1px solid #243047;
+            border-radius: 12px; padding: 20px; margin-bottom: 20px;
+        }
+        .card h2 { font-size: 14px; color: #cbd5e1; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; }
+        .row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #1e293b; font-size: 14px; }
+        .row:last-child { border-bottom: none; }
+        .row .label { color: #8b98ad; }
+        .row .value { font-weight: 600; text-align: right; max-width: 65%; }
+
+        .timeline { position: relative; padding-left: 32px; }
+        .timeline::before {
+            content: ''; position: absolute; left: 10px; top: 6px; bottom: 6px;
+            width: 2px; background: #243047;
+        }
+        .event { position: relative; padding: 14px 0; }
+        .event::before {
+            content: ''; position: absolute; left: -26px; top: 20px;
+            width: 12px; height: 12px; border-radius: 50%;
+            background: #3b82f6; border: 3px solid #0a1120;
+        }
+        .event.created::before { background: #22c55e; }
+        .event.modified::before { background: #f59e0b; }
+        .event.approved::before { background: #3b82f6; }
+        .event.rejected::before { background: #ef4444; }
+        .event.exit::before { background: #22c55e; }
+        .event.return::before { background: #22c55e; }
+        .event.unauthorized_attempt::before { background: #ef4444; }
+
+        .event .head {
+            display: flex; justify-content: space-between; align-items: baseline;
+            margin-bottom: 6px;
+        }
+        .event .action {
+            font-weight: 700; text-transform: uppercase; font-size: 12px;
+            letter-spacing: 1px; color: #cbd5e1;
+        }
+        .event .time { color: #64748b; font-size: 12px; }
+        .event .who { color: #8b98ad; font-size: 13px; margin-bottom: 6px; }
+        .event .remarks { color: #94a3b8; font-size: 13px; font-style: italic; }
+        .event .changes { margin-top: 8px; }
+        .event .changes table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .event .changes td { padding: 4px 8px; border-bottom: 1px solid #1e293b; }
+        .event .changes .field { color: #8b98ad; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+        .event .changes .old { color: #fca5a5; text-decoration: line-through; }
+        .event .changes .new { color: #4ade80; }
+
+        .back {
+            display: inline-block; margin-top: 20px; color: #8b98ad;
+            text-decoration: none; font-size: 14px;
+        }
+        .back:hover { color: #e6edf7; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Journey {{ journey.journey_code }}</h1>
+        <div class="subtitle">
+            {{ journey.vehicle.registration_number if journey.vehicle else '' }}
+            · {{ journey.destination }}
+            · {{ journey.status }}
+        </div>
+
+        <div class="card">
+            <h2>Current Record</h2>
+            <div class="row"><span class="label">Vehicle</span><span class="value">{{ journey.vehicle.registration_number if journey.vehicle else "—" }}</span></div>
+            <div class="row"><span class="label">Driver</span><span class="value">{{ journey.driver.full_name if journey.driver else "—" }}</span></div>
+            <div class="row"><span class="label">Requesting Department</span><span class="value">{{ journey.requesting_department.name if journey.requesting_department else "—" }}</span></div>
+            <div class="row"><span class="label">Requested By</span><span class="value">{{ journey.requested_by_name }}{% if journey.requested_by_staff_number %} ({{ journey.requested_by_staff_number }}){% endif %}</span></div>
+            <div class="row"><span class="label">Origin</span><span class="value">{{ journey.origin_station.name if journey.origin_station else "—" }}</span></div>
+            <div class="row"><span class="label">Destination</span><span class="value">{{ journey.destination }}</span></div>
+            <div class="row"><span class="label">Purpose</span><span class="value">{{ journey.purpose }}</span></div>
+            <div class="row"><span class="label">Priority</span><span class="value">{{ journey.priority }}</span></div>
+            <div class="row"><span class="label">Expected Departure</span><span class="value">{{ journey.expected_departure.strftime("%Y-%m-%d %H:%M") if journey.expected_departure else "—" }}</span></div>
+            <div class="row"><span class="label">Expected Return</span><span class="value">{{ journey.expected_return.strftime("%Y-%m-%d %H:%M") if journey.expected_return else "—" }}</span></div>
+            {% if journey.actual_departure %}
+            <div class="row"><span class="label">Actual Departure</span><span class="value">{{ journey.actual_departure.strftime("%Y-%m-%d %H:%M") }}</span></div>
+            {% endif %}
+            {% if journey.starting_odometer %}
+            <div class="row"><span class="label">Starting Odometer</span><span class="value">{{ journey.starting_odometer }} km</span></div>
+            {% endif %}
+            {% if journey.actual_return %}
+            <div class="row"><span class="label">Actual Return</span><span class="value">{{ journey.actual_return.strftime("%Y-%m-%d %H:%M") }}</span></div>
+            {% endif %}
+            {% if journey.ending_odometer %}
+            <div class="row"><span class="label">Ending Odometer</span><span class="value">{{ journey.ending_odometer }} km</span></div>
+            {% endif %}
+            {% if journey.distance_km %}
+            <div class="row"><span class="label">Distance</span><span class="value">{{ journey.distance_km }} km</span></div>
+            {% endif %}
+            {% if journey.rejection_reason %}
+            <div class="row"><span class="label">Rejection Reason</span><span class="value">{{ journey.rejection_reason }}</span></div>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <h2>Audit Trail</h2>
+            {% if audits %}
+            <div class="timeline">
+                {% for a in audits %}
+                <div class="event {{ a.action }}">
+                    <div class="head">
+                        <span class="action">{{ a.action.replace("_", " ") }}</span>
+                        <span class="time">{{ a.created_at.strftime("%Y-%m-%d %H:%M:%S") }}</span>
+                    </div>
+                    <div class="who">by {{ a.user_name or "System" }}</div>
+                    {% if a.remarks %}<div class="remarks">{{ a.remarks }}</div>{% endif %}
+                    {% if a.field_changes %}
+                    <div class="changes">
+                        <table>
+                            {% for field, pair in (a.field_changes | from_json).items() %}
+                            <tr>
+                                <td class="field">{{ field.replace("_", " ") }}</td>
+                                <td class="old">{{ pair[0] if pair[0] is not none else "—" }}</td>
+                                <td>→</td>
+                                <td class="new">{{ pair[1] if pair[1] is not none else "—" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </table>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p style="color:#64748b; font-size:14px;">No audit entries yet.</p>
+            {% endif %}
+        </div>
+
+        <a href="/dashboard" class="back">← Back to Dashboard</a>
+    </div>
+</body>
+</html>

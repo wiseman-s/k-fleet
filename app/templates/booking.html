@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Bookings — K-FLEET</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg: #0a1120;
+            --surface: #131c31;
+            --surface-alt: #1a2439;
+            --border: #243047;
+            --text: #e6edf7;
+            --text-muted: #8b98ad;
+            --text-dim: #64748b;
+            --green: #22c55e;
+            --blue: #3b82f6;
+            --amber: #f59e0b;
+            --red: #ef4444;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg); color: var(--text); padding: 28px;
+            font-size: 14px; line-height: 1.5;
+        }
+        .topbar {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 32px; padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+        .brand { display: flex; align-items: center; gap: 14px; }
+        .brand-mark {
+            width: 42px; height: 42px; border-radius: 10px;
+            background: linear-gradient(135deg, var(--green), #16a34a);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 900; color: #052e16; font-size: 18px;
+        }
+        .brand-text h1 { font-size: 20px; font-weight: 800; letter-spacing: 2px; color: #f8fafc; }
+        .brand-text .sub { color: var(--text-dim); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
+        .user-block { display: flex; align-items: center; gap: 16px; }
+        .user-info { text-align: right; font-size: 13px; }
+        .user-info .name { font-weight: 700; }
+        .user-info .role { color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+        .signout {
+            display: inline-flex; padding: 8px 14px; border-radius: 6px;
+            background: transparent; border: 1px solid var(--border);
+            color: var(--text-muted); text-decoration: none;
+            font-size: 12px; font-weight: 600;
+        }
+        .signout:hover { border-color: var(--red); color: var(--red); }
+
+        .actions { display: flex; gap: 10px; margin-bottom: 32px; }
+        .btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 11px 18px; border-radius: 8px;
+            text-decoration: none; font-weight: 700; font-size: 13px;
+            border: none; cursor: pointer; font-family: inherit;
+        }
+        .btn.primary { background: var(--green); color: #052e16; }
+        .btn.outline { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+
+        .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 32px; }
+        .metric {
+            background: var(--surface); padding: 20px; border-radius: 12px;
+            border: 1px solid var(--border); position: relative;
+        }
+        .metric::before { content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 3px; background: var(--text-dim); }
+        .metric.blue::before { background: var(--blue); }
+        .metric.green::before { background: var(--green); }
+        .metric .label { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin-bottom: 10px; }
+        .metric .value { font-size: 34px; font-weight: 800; line-height: 1; color: #f8fafc; }
+
+        .section-title { font-size: 15px; font-weight: 700; color: #cbd5e1; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 14px; }
+        .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 13px 18px; text-align: left; font-size: 13px; vertical-align: middle; }
+        th {
+            background: var(--surface-alt); color: var(--text-muted); font-weight: 700;
+            font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+            border-bottom: 1px solid var(--border);
+        }
+        tbody tr { border-bottom: 1px solid var(--border); }
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover { background: var(--surface-alt); }
+        td strong { color: #f8fafc; }
+
+        .badge {
+            display: inline-flex; padding: 4px 10px; border-radius: 999px;
+            font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
+        }
+        .badge.requested { background: rgba(245, 158, 11, 0.15); color: #fcd34d; }
+        .badge.approved { background: rgba(59, 130, 246, 0.15); color: #93c5fd; }
+        .badge.out { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+        .badge.closed { background: #1e293b; color: #94a3b8; }
+        .badge.rejected { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
+        .badge.unauthorized { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+        .badge.pending { background: rgba(245, 158, 11, 0.15); color: #fcd34d; }
+
+        .empty { text-align: center; padding: 48px 20px; color: var(--text-dim); }
+        .empty strong { display: block; color: var(--text-muted); margin-bottom: 6px; font-size: 15px; }
+
+        .footer { color: var(--text-dim); font-size: 11px; text-align: center; margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--border); }
+    </style>
+</head>
+<body>
+
+    <div class="topbar">
+        <div class="brand">
+            <div class="brand-mark">KF</div>
+            <div class="brand-text">
+                <h1>K-FLEET</h1>
+                <div class="sub">My Vehicle Requests</div>
+            </div>
+        </div>
+        <div class="user-block">
+            <div class="user-info">
+                <div class="name">{{ current_user.full_name }}</div>
+                <div class="role">{{ current_user.role }}</div>
+            </div>
+            <a href="/auth/logout" class="signout">Sign out →</a>
+        </div>
+    </div>
+
+    <div class="actions">
+        <a href="/booking/new" class="btn primary">+ New Vehicle Request</a>
+    </div>
+
+    <div class="metrics">
+        <div class="metric blue">
+            <div class="label">Total Requests</div>
+            <div class="value">{{ my_requests | length }}</div>
+        </div>
+        <div class="metric green">
+            <div class="label">Active</div>
+            <div class="value">{{ active_count }}</div>
+        </div>
+    </div>
+
+    <div class="section-title">My Requests</div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Destination</th>
+                    <th>Purpose</th>
+                    <th>Departure</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for j in my_requests %}
+                <tr>
+                    <td><strong>{{ j.journey_code }}</strong></td>
+                    <td>{{ j.destination }}</td>
+                    <td>{{ j.purpose }}</td>
+                    <td>{{ j.expected_departure.strftime("%Y-%m-%d %H:%M") if j.expected_departure else "—" }}</td>
+                    <td><span class="badge {{ j.status }}">{{ j.status }}</span></td>
+                </tr>
+                {% endfor %}
+                {% if not my_requests %}
+                <tr>
+                    <td colspan="5">
+                        <div class="empty">
+                            <strong>No requests yet</strong>
+                            Click "New Vehicle Request" to submit your first one.
+                        </div>
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="footer">K-FLEET · KenGen Digital Fleet Movement</div>
+
+</body>
+</html>

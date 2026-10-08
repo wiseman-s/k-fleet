@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assign Vehicle — {{ journey.journey_code }}</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+            background: #0f172a; color: #e2e8f0; padding: 24px;
+        }
+        .container { max-width: 640px; margin: 0 auto; background: #1e293b; padding: 32px; border-radius: 12px; }
+        h1 { margin-bottom: 6px; font-size: 22px; }
+        .subtitle { color: #94a3b8; font-size: 14px; margin-bottom: 24px; }
+
+        .summary {
+            background: #0f172a; border: 1px solid #334155; border-radius: 8px;
+            padding: 16px; margin-bottom: 24px;
+        }
+        .summary .row {
+            display: flex; justify-content: space-between;
+            padding: 6px 0; border-bottom: 1px solid #1e293b; font-size: 14px;
+        }
+        .summary .row:last-child { border-bottom: none; }
+        .summary .label { color: #94a3b8; }
+        .summary .value { font-weight: 600; text-align: right; }
+
+        label {
+            display: block; margin-top: 16px; margin-bottom: 6px;
+            color: #94a3b8; font-size: 13px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        select, textarea, input {
+            width: 100%; padding: 10px 12px; border-radius: 6px;
+            border: 1px solid #334155; background: #0f172a;
+            color: #e2e8f0; font-size: 14px; font-family: inherit;
+        }
+        select:focus, textarea:focus, input:focus { outline: none; border-color: #3b82f6; }
+
+        button {
+            margin-top: 28px; padding: 12px 24px; background: #22c55e;
+            color: #0f172a; border: none; border-radius: 6px;
+            font-weight: 700; font-size: 15px; cursor: pointer; width: 100%;
+        }
+        button:hover { background: #16a34a; }
+        .back {
+            display: inline-block; margin-top: 16px; color: #94a3b8;
+            text-decoration: none; font-size: 14px;
+        }
+        .warning {
+            background: #78350f; color: #fed7aa; padding: 12px;
+            border-radius: 6px; margin-bottom: 16px; font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Assign Vehicle — {{ journey.journey_code }}</h1>
+        <div class="subtitle">Choose a vehicle and driver, then approve the journey.</div>
+
+        <div class="summary">
+            <div class="row"><span class="label">Requested By</span><span class="value">{{ journey.requested_by_name }}</span></div>
+            <div class="row"><span class="label">Department</span><span class="value">{{ journey.requesting_department.name if journey.requesting_department else "—" }}</span></div>
+            <div class="row"><span class="label">Origin</span><span class="value">{{ journey.origin_station.name if journey.origin_station else "—" }}</span></div>
+            <div class="row"><span class="label">Destination</span><span class="value">{{ journey.destination }}</span></div>
+            <div class="row"><span class="label">Purpose</span><span class="value">{{ journey.purpose }}</span></div>
+            <div class="row"><span class="label">Priority</span><span class="value">{{ journey.priority }}</span></div>
+            <div class="row"><span class="label">Expected Departure</span><span class="value">{{ journey.expected_departure.strftime("%Y-%m-%d %H:%M") }}</span></div>
+            <div class="row"><span class="label">Expected Return</span><span class="value">{{ journey.expected_return.strftime("%Y-%m-%d %H:%M") }}</span></div>
+        </div>
+
+        {% if not vehicles %}
+        <div class="warning">
+            No vehicles are currently available at {{ journey.origin_station.name if journey.origin_station else "this station" }}.
+            Add a vehicle to this station before assigning.
+        </div>
+        {% endif %}
+
+        <form method="POST" action="/journeys/{{ journey.id }}/assign-page">
+            <label>Assign Vehicle</label>
+            <select name="vehicle_id" required {% if not vehicles %}disabled{% endif %}>
+                <option value="">Select a vehicle…</option>
+                {% for v in vehicles %}
+                <option value="{{ v.id }}">
+                    {{ v.registration_number }} — {{ v.make or "" }} {{ v.model or "" }} ({{ v.current_odometer }} km)
+                </option>
+                {% endfor %}
+            </select>
+
+            <label>Assign Driver</label>
+            <select name="driver_id" required>
+                <option value="">Select a driver…</option>
+                {% for d in drivers %}
+                <option value="{{ d.id }}">{{ d.full_name }} ({{ d.staff_number }}) — {{ d.duty_station.name if d.duty_station else "" }}</option>
+                {% endfor %}
+            </select>
+
+            <label>Remarks (optional)</label>
+            <textarea name="remarks" rows="2" placeholder="e.g. Assigned due to availability"></textarea>
+
+            <button type="submit" {% if not vehicles %}disabled{% endif %}>Assign &amp; Approve</button>
+        </form>
+
+        <a href="/dashboard" class="back">← Back to Dashboard</a>
+    </div>
+</body>
+</html>

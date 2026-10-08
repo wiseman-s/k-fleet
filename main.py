@@ -1,24 +1,31 @@
 import asyncio
 import logging
+import json
+import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Depends
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
 
-from app.core.database import Base, engine
+from app.core.database import Base, engine, get_db
 from app.models import (
     station, vehicle, driver, department, journey,
-    security_alert, user, gate, gate_transaction, gps_event,
+    security_alert, user, gate, gate_transaction, gps_event, journey_audit,
 )
 from app.routers import (
     stations, vehicles, drivers, departments, journeys,
-    dashboard, gate as gate_router, gates, auth, tracking,
+    dashboard, gate as gate_router, gates, auth, tracking, booking,
 )
 from app.services.tracker import run_poller
 
 
 logging.basicConfig(level=logging.INFO)
+
+
+IS_PRODUCTION = os.getenv("ENV", "development").lower() == "production"
 
 
 @asynccontextmanager
@@ -47,9 +54,22 @@ async def lifespan(app: FastAPI):
             pass
 
 
-app = FastAPI(title="K-FLEET SECURE", lifespan=lifespan)
+app = FastAPI(
+    title="K-FLEET SECURE",
+    lifespan=lifespan,
+    docs_url=None if IS_PRODUCTION else "/docs",
+    redoc_url=None if IS_PRODUCTION else "/redoc",
+    openapi_url=None if IS_PRODUCTION else "/openapi.json",
+)
+
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+
+# Register a from_json filter for all Jinja templates
+templates_env = Jinja2Templates(directory="app/templates").env
+templates_env.filters["from_json"] = lambda s: json.loads(s) if s else {}
+
 
 app.include_router(auth.router)
 app.include_router(stations.router)
@@ -61,11 +81,38 @@ app.include_router(journeys.router)
 app.include_router(dashboard.router)
 app.include_router(gate_router.router)
 app.include_router(tracking.router)
+app.include_router(booking.router)
 
 
 @app.get("/")
-def root():
-    return RedirectResponse(url="/dashboard")
+def root(request: Request, db: Session = Depends(get_db)):
+    from app.core.security import decode_token
+    from app.models.user import User
+
+    token = request.cookies.get("kfleet_token")
+
+    if token:
+        payload = decode_token(token)
+
+        if payload and payload.get("sub"):
+            user = db.query(User).filter(
+                User.id == int(payload["sub"])
+            ).first()
+
+            if user:
+                if user.role == "gatekeeper":
+                    return RedirectResponse(url="/gate")
+
+                if user.role in (
+                    "admin",
+                    "fleet_officer",
+                    "supervisor",
+                ):
+                    return RedirectResponse(url="/dashboard")
+
+                return RedirectResponse(url="/booking")
+
+    return RedirectResponse(url="/auth/login")
 
 
 @app.get("/health")

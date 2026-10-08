@@ -1,15 +1,16 @@
-from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Depends, Request, Form
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from datetime import datetime, date
 
 from app.core.database import get_db
-from app.core.security import require_roles
+from app.core.security import require_roles, get_current_user
 from app.models.vehicle import Vehicle
 from app.models.journey import Journey
 from app.models.driver import Driver
 from app.models.user import User
+from app.models.security_alert import SecurityAlert
 
 router = APIRouter(tags=["Dashboard"])
 
@@ -31,6 +32,7 @@ def build_dashboard_data(db: Session):
 
     for v in all_vehicles:
         journey = active_by_vehicle.get(v.id)
+
         if not journey:
             counts["parked"] += 1
             vehicle_statuses.append({
@@ -45,10 +47,16 @@ def build_dashboard_data(db: Session):
                 "destination": None,
                 "expected_return": None,
             })
+
         else:
-            is_overdue = journey.expected_return and journey.expected_return < now
+            is_overdue = (
+                journey.expected_return
+                and journey.expected_return < now
+            )
+
             status = "overdue" if is_overdue else "on_journey"
             counts[status] += 1
+
             vehicle_statuses.append({
                 "vehicle_id": v.id,
                 "registration_number": v.registration_number,
@@ -57,14 +65,26 @@ def build_dashboard_data(db: Session):
                 "home_station": v.home_station.name if v.home_station else None,
                 "status": status,
                 "journey_code": journey.journey_code,
-                "driver_name": journey.driver.full_name if journey.driver else None,
+                "driver_name": (
+                    journey.driver.full_name
+                    if journey.driver else None
+                ),
                 "destination": journey.destination,
                 "expected_return": journey.expected_return,
             })
 
-    pending = db.query(Journey).filter(Journey.status == "pending").count()
-    approved = db.query(Journey).filter(Journey.status == "approved").count()
-    out_count = db.query(Journey).filter(Journey.status == "out").count()
+    pending = db.query(Journey).filter(
+        Journey.status == "pending"
+    ).count()
+
+    approved = db.query(Journey).filter(
+        Journey.status == "approved"
+    ).count()
+
+    out_count = db.query(Journey).filter(
+        Journey.status == "out"
+    ).count()
+
     closed_today = db.query(Journey).filter(
         Journey.status == "closed",
         Journey.actual_return >= today_start
@@ -72,24 +92,40 @@ def build_dashboard_data(db: Session):
 
     # Live activity: active journeys + those closed today
     active_statuses = ["pending", "approved", "out"]
+
     recent = (
         db.query(Journey)
         .filter(
-            (Journey.status.in_(active_statuses)) |
-            ((Journey.status == "closed") & (Journey.actual_return >= today_start))
+            (Journey.status.in_(active_statuses))
+            |
+            (
+                (Journey.status == "closed")
+                & (Journey.actual_return >= today_start)
+            )
         )
         .order_by(Journey.created_at.desc())
         .limit(20)
         .all()
     )
+
     recent_journeys = []
+
     for j in recent:
         recent_journeys.append({
             "id": j.id,
             "journey_code": j.journey_code,
-            "registration_number": j.vehicle.registration_number if j.vehicle else None,
-            "driver_name": j.driver.full_name if j.driver else None,
-            "department": j.requesting_department.name if j.requesting_department else None,
+            "registration_number": (
+                j.vehicle.registration_number
+                if j.vehicle else None
+            ),
+            "driver_name": (
+                j.driver.full_name
+                if j.driver else None
+            ),
+            "department": (
+                j.requesting_department.name
+                if j.requesting_department else None
+            ),
             "destination": j.destination,
             "status": j.status,
         })
@@ -99,7 +135,36 @@ def build_dashboard_data(db: Session):
         Driver.is_active == True        # noqa: E712
     ).all()
 
-    from app.models.security_alert import SecurityAlert
+    # Unassigned requests (no vehicle assigned yet)
+    unassigned_requests = (
+        db.query(Journey)
+        .filter(Journey.status == "requested")
+        .order_by(Journey.created_at.desc())
+        .limit(20)
+        .all()
+    )
+
+    pending_requests = []
+
+    for j in unassigned_requests:
+        pending_requests.append({
+            "id": j.id,
+            "journey_code": j.journey_code,
+            "department": (
+                j.requesting_department.name
+                if j.requesting_department else None
+            ),
+            "requested_by": j.requested_by_name,
+            "origin_station": (
+                j.origin_station.name
+                if j.origin_station else None
+            ),
+            "destination": j.destination,
+            "purpose": j.purpose,
+            "priority": j.priority,
+            "expected_departure": j.expected_departure,
+            "expected_return": j.expected_return,
+        })
 
     return {
         "vehicles_total": len(all_vehicles),
@@ -113,8 +178,18 @@ def build_dashboard_data(db: Session):
         "vehicles": vehicle_statuses,
         "recent_journeys": recent_journeys,
         "supervisors": supervisors,
-        "unresolved_alerts_count": db.query(SecurityAlert).filter(SecurityAlert.resolved == False).count(),  # noqa: E712
-        "recent_alerts": db.query(SecurityAlert).filter(SecurityAlert.resolved == False).order_by(SecurityAlert.created_at.desc()).limit(10).all(),
+        "pending_requests": pending_requests,
+        "pending_requests_count": len(unassigned_requests),
+        "unresolved_alerts_count": db.query(SecurityAlert).filter(
+            SecurityAlert.resolved == False
+        ).count(),  # noqa: E712
+        "recent_alerts": (
+            db.query(SecurityAlert)
+            .filter(SecurityAlert.resolved == False)
+            .order_by(SecurityAlert.created_at.desc())
+            .limit(10)
+            .all()
+        ),
     }
 
 
@@ -138,8 +213,33 @@ def dashboard_page(
 ):
     data = build_dashboard_data(db)
     data["current_user"] = current_user
+
     return templates.TemplateResponse(
         request=request,
         name="dashboard.html",
         context={"data": data}
+    )
+
+
+@router.post("/alerts/{alert_id}/resolve-page")
+def resolve_alert_form(
+    alert_id: int,
+    resolution_notes: str = Form(""),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    alert = db.query(SecurityAlert).filter(
+        SecurityAlert.id == alert_id
+    ).first()
+
+    if alert and not alert.resolved:
+        alert.resolved = True
+        alert.resolved_by_name = current_user.full_name
+        alert.resolved_at = datetime.utcnow()
+        alert.resolution_notes = resolution_notes or None
+        db.commit()
+
+    return RedirectResponse(
+        url="/dashboard",
+        status_code=303
     )

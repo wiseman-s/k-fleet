@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modify Journey {{ journey.journey_code }} — K-FLEET</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 24px;
+        }
+        .container {
+            max-width: 640px;
+            margin: 0 auto;
+            background: #1e293b;
+            padding: 32px;
+            border-radius: 12px;
+        }
+        h1 { margin-bottom: 6px; font-size: 22px; }
+        .subtitle { color: #94a3b8; font-size: 14px; margin-bottom: 24px; }
+        .badge {
+            display: inline-block; padding: 4px 10px; border-radius: 999px;
+            font-size: 12px; font-weight: 700; text-transform: uppercase;
+            background: rgba(245, 158, 11, 0.15); color: #fcd34d;
+            margin-left: 8px; vertical-align: middle;
+        }
+        label {
+            display: block; margin-top: 16px; margin-bottom: 6px;
+            color: #94a3b8; font-size: 13px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        input, select, textarea {
+            width: 100%; padding: 10px 12px; border-radius: 6px;
+            border: 1px solid #334155; background: #0f172a;
+            color: #e2e8f0; font-size: 14px; font-family: inherit;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none; border-color: #3b82f6;
+        }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .actions {
+            display: flex; gap: 12px; margin-top: 28px;
+        }
+        .btn {
+            flex: 1; padding: 12px 24px; border: none; border-radius: 6px;
+            font-weight: 700; font-size: 15px; cursor: pointer;
+            text-align: center; text-decoration: none;
+        }
+        .btn.primary { background: #22c55e; color: #0f172a; }
+        .btn.secondary { background: #334155; color: #e2e8f0; }
+        .btn:hover { opacity: 0.9; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>
+            Modify Journey {{ journey.journey_code }}
+            <span class="badge">{{ journey.status }}</span>
+        </h1>
+        <div class="subtitle">Edit the details below, then save. Only pending journeys can be modified.</div>
+
+        <form method="POST" action="/journeys/{{ journey.id }}/modify-page">
+            <label>Vehicle</label>
+            <select name="vehicle_id" required>
+                {% for v in vehicles %}
+                <option value="{{ v.id }}" {% if v.id == journey.vehicle_id %}selected{% endif %}>
+                    {{ v.registration_number }} — {{ v.make or "" }} {{ v.model or "" }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <label>Driver</label>
+            <select name="driver_id" required>
+                {% for d in drivers %}
+                <option value="{{ d.id }}" {% if d.id == journey.driver_id %}selected{% endif %}>
+                    {{ d.full_name }} ({{ d.staff_number }})
+                </option>
+                {% endfor %}
+            </select>
+
+            <label>Requesting Department</label>
+            <select name="requesting_department_id" required>
+                {% for dept in departments %}
+                <option value="{{ dept.id }}" {% if dept.id == journey.requesting_department_id %}selected{% endif %}>
+                    {{ dept.name }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <div class="row">
+                <div>
+                    <label>Requested By (Name)</label>
+                    <input type="text" name="requested_by_name" required value="{{ journey.requested_by_name or '' }}">
+                </div>
+                <div>
+                    <label>Staff Number</label>
+                    <input type="text" name="requested_by_staff_number" value="{{ journey.requested_by_staff_number or '' }}">
+                </div>
+            </div>
+
+            <label>Origin Station</label>
+            <select name="origin_station_id" required>
+                {% for s in stations %}
+                <option value="{{ s.id }}" {% if s.id == journey.origin_station_id %}selected{% endif %}>
+                    {{ s.name }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <label>Destination</label>
+            <input type="text" name="destination" required value="{{ journey.destination or '' }}">
+
+            <label>Purpose</label>
+            <textarea name="purpose" rows="3" required>{{ journey.purpose or '' }}</textarea>
+
+            <label>Priority</label>
+            <select name="priority">
+                <option value="normal" {% if journey.priority == "normal" %}selected{% endif %}>Normal</option>
+                <option value="urgent" {% if journey.priority == "urgent" %}selected{% endif %}>Urgent</option>
+            </select>
+
+            <div class="row">
+                <div>
+                    <label>Expected Departure</label>
+                    <input type="datetime-local" name="expected_departure" required
+                           value="{{ journey.expected_departure.strftime('%Y-%m-%dT%H:%M') if journey.expected_departure else '' }}">
+                </div>
+                <div>
+                    <label>Expected Return</label>
+                    <input type="datetime-local" name="expected_return" required
+                           value="{{ journey.expected_return.strftime('%Y-%m-%dT%H:%M') if journey.expected_return else '' }}">
+                </div>
+            </div>
+
+            <label>Remarks</label>
+            <textarea name="remarks" rows="2" placeholder="Optional notes">{{ journey.remarks or '' }}</textarea>
+
+            <div class="actions">
+                <a href="/dashboard" class="btn secondary">Cancel</a>
+                <button type="submit" class="btn primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>
