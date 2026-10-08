@@ -1,3 +1,4 @@
+
 from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -5,7 +6,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime, date
 
 from app.core.database import get_db
-from app.core.security import require_roles, get_current_user
+from app.core.security import require_roles_or_redirect, get_current_user
 from app.models.vehicle import Vehicle
 from app.models.journey import Journey
 from app.models.driver import Driver
@@ -24,7 +25,10 @@ def build_dashboard_data(db: Session):
     all_vehicles = db.query(Vehicle).all()
 
     # Active journeys = status "out" (vehicle on the road)
-    active_journeys = db.query(Journey).filter(Journey.status == "out").all()
+    active_journeys = db.query(Journey).filter(
+        Journey.status == "out"
+    ).all()
+
     active_by_vehicle = {j.vehicle_id: j for j in active_journeys}
 
     vehicle_statuses = []
@@ -132,7 +136,7 @@ def build_dashboard_data(db: Session):
 
     supervisors = db.query(Driver).filter(
         Driver.is_supervisor == True,  # noqa: E712
-        Driver.is_active == True        # noqa: E712
+        Driver.is_active == True       # noqa: E712
     ).all()
 
     # Unassigned requests (no vehicle assigned yet)
@@ -197,7 +201,11 @@ def build_dashboard_data(db: Session):
 def dashboard_summary(
     db: Session = Depends(get_db),
     current_user: User = Depends(
-        require_roles("admin", "fleet_officer", "supervisor")
+        require_roles_or_redirect(
+            "admin",
+            "fleet_officer",
+            "supervisor"
+        )
     ),
 ):
     return build_dashboard_data(db)
@@ -208,7 +216,11 @@ def dashboard_page(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(
-        require_roles("admin", "fleet_officer", "supervisor")
+        require_roles_or_redirect(
+            "admin",
+            "fleet_officer",
+            "supervisor"
+        )
     ),
 ):
     data = build_dashboard_data(db)

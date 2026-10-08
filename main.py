@@ -1,3 +1,4 @@
+
 import asyncio
 import logging
 import json
@@ -46,6 +47,7 @@ async def lifespan(app: FastAPI):
 
     yield
 
+    # Stop the GPS poller during application shutdown
     if poller_task:
         poller_task.cancel()
         try:
@@ -71,6 +73,7 @@ templates_env = Jinja2Templates(directory="app/templates").env
 templates_env.filters["from_json"] = lambda s: json.loads(s) if s else {}
 
 
+# Register application routers
 app.include_router(auth.router)
 app.include_router(stations.router)
 app.include_router(gates.router)
@@ -103,11 +106,7 @@ def root(request: Request, db: Session = Depends(get_db)):
                 if user.role == "gatekeeper":
                     return RedirectResponse(url="/gate")
 
-                if user.role in (
-                    "admin",
-                    "fleet_officer",
-                    "supervisor",
-                ):
+                if user.role in ("admin", "fleet_officer", "supervisor"):
                     return RedirectResponse(url="/dashboard")
 
                 return RedirectResponse(url="/booking")

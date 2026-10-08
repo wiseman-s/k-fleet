@@ -1,10 +1,16 @@
+
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import hash_password, verify_password, create_access_token, get_current_user
+from app.core.security import (
+    hash_password,
+    verify_password,
+    create_access_token,
+    get_current_user,
+)
 from app.models.user import User
 from app.schemas.user import UserCreate, UserOut
 
@@ -29,7 +35,9 @@ def login(
     password: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    user = db.query(User).filter(User.staff_number == staff_number).first()
+    user = db.query(User).filter(
+        User.staff_number == staff_number
+    ).first()
 
     if not user or not verify_password(password, user.password_hash):
         return templates.TemplateResponse(
@@ -62,7 +70,20 @@ def login(
         "role": user.role
     })
 
-    response = RedirectResponse(url="/dashboard", status_code=303)
+    # Send the user to the right portal based on their role
+    if user.role == "gatekeeper":
+        redirect_url = "/gate"
+    elif user.role in ("admin", "fleet_officer", "supervisor"):
+        redirect_url = "/dashboard"
+    else:
+        # Staff, driver, and any other non-admin role
+        redirect_url = "/booking"
+
+    response = RedirectResponse(
+        url=redirect_url,
+        status_code=303
+    )
+
     response.set_cookie(
         key="kfleet_token",
         value=token,
@@ -70,12 +91,16 @@ def login(
         samesite="lax",
         max_age=60 * 60 * 12
     )
+
     return response
 
 
 @router.get("/logout")
 def logout():
-    response = RedirectResponse(url="/auth/login", status_code=303)
+    response = RedirectResponse(
+        url="/auth/login",
+        status_code=303
+    )
     response.delete_cookie("kfleet_token")
     return response
 

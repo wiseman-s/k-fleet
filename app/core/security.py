@@ -1,3 +1,4 @@
+
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -11,12 +12,16 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.user import User
 
+
 # In production, this should come from an environment variable.
 SECRET_KEY = "kfleet-dev-secret-change-in-production-2026"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 12  # 12 hours — covers a full shift
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="/auth/login",
+    auto_error=False
+)
 
 
 def hash_password(password: str) -> str:
@@ -33,7 +38,10 @@ def verify_password(plain: str, hashed: str) -> bool:
         return False
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(
+    data: dict,
+    expires_delta: Optional[timedelta] = None
+) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + (
         expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -71,7 +79,12 @@ def get_current_user(
     if not payload or "sub" not in payload:
         raise credentials_exception
 
-    user = db.query(User).filter(User.id == int(payload["sub"])).first()
+    try:
+        user_id = int(payload["sub"])
+    except (ValueError, TypeError):
+        raise credentials_exception
+
+    user = db.query(User).filter(User.id == user_id).first()
 
     if not user or not user.is_active:
         raise credentials_exception
@@ -97,22 +110,92 @@ def get_current_user_or_redirect(
     request: Request,
     db: Session = Depends(get_db)
 ) -> User:
-    """Like get_current_user, but instead of raising 401, redirects the browser
-    to the login page. Use this for HTML pages (not API endpoints)."""
+    """Like get_current_user, but redirects the browser to the login page.
+    Use this for HTML pages, not API endpoints."""
     token = request.cookies.get("kfleet_token")
 
     if token:
         payload = decode_token(token)
 
         if payload and payload.get("sub"):
-            user = db.query(User).filter(
-                User.id == int(payload["sub"])
-            ).first()
+            try:
+                user_id = int(payload["sub"])
+            except (ValueError, TypeError):
+                user_id = None
 
-            if user and user.is_active:
-                return user
+            if user_id is not None:
+                user = db.query(User).filter(
+                    User.id == user_id
+                ).first()
+
+                if user and user.is_active:
+                    return user
 
     raise HTTPException(
         status_code=status.HTTP_307_TEMPORARY_REDIRECT,
         headers={"Location": "/auth/login"},
     )
+
+
+def require_roles_or_redirect(
+    *allowed_roles,
+    redirect_to: str = "/auth/login"
+):
+    """Like require_roles, but redirects HTML visitors instead of returning 401/403."""
+
+    def _checker(
+        request: Request,
+        db: Session = Depends(get_db)
+    ) -> User:
+        token = request.cookies.get("kfleet_token")
+
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+                headers={"Location": redirect_to}
+            )
+
+        payload = decode_token(token)
+
+        if not payload or not payload.get("sub"):
+            raise HTTPException(
+                status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+                headers={"Location": redirect_to}
+            )
+
+        try:
+            user_id = int(payload["sub"])
+        except (ValueError, TypeError):
+            raise HTTPException(
+                status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+                headers={"Location": redirect_to}
+            )
+
+        user = db.query(User).filter(
+            User.id == user_id
+        ).first()
+
+        if not user or not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+                headers={"Location": redirect_to}
+            )
+
+        if user.role not in allowed_roles:
+            # Logged-in user with the wrong role:
+            # redirect them to their correct portal.
+            if user.role == "gatekeeper":
+                target = "/gate"
+            elif user.role in ("admin", "fleet_officer", "supervisor"):
+                target = "/dashboard"
+            else:
+                target = "/booking"
+
+            raise HTTPException(
+                status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+                headers={"Location": target}
+            )
+
+        return user
+
+    return _checker
