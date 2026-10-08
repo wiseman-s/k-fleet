@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
 from app.core.database import get_db
-from app.core.security import get_current_user
+from app.core.security import decode_token
 from app.core.templates import get_templates
 from app.models.journey import Journey
 from app.models.user import User
@@ -15,30 +15,37 @@ router = APIRouter(prefix="/booking", tags=["Booking"])
 templates = get_templates()
 
 
-def _is_staff_role(role: str) -> bool:
-    """Any role except gatekeeper can use the booking portal."""
-    return role != "gatekeeper"
+def _current_user(request: Request, db: Session):
+    """Return the logged-in user, or None. Used for HTML pages where we want
+    to redirect to login rather than return a JSON 401."""
+    token = request.cookies.get("kfleet_token")
+    if not token:
+        return None
+    payload = decode_token(token)
+    if not payload or not payload.get("sub"):
+        return None
+    user = db.query(User).filter(User.id == int(payload["sub"])).first()
+    if not user or not user.is_active:
+        return None
+    return user
 
 
 @router.get("", response_class=HTMLResponse)
-def booking_home(
-    request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    if not _is_staff_role(current_user.role):
+def booking_home(request: Request, db: Session = Depends(get_db)):
+    user = _current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/auth/login", status_code=303)
+    if user.role == "gatekeeper":
         return RedirectResponse(url="/gate", status_code=303)
 
-    # Recent requests by this user
     my_requests = (
         db.query(Journey)
-        .filter(Journey.requested_by_user_id == current_user.id)
+        .filter(Journey.requested_by_user_id == user.id)
         .order_by(desc(Journey.created_at))
         .limit(20)
         .all()
     )
 
-    # Active ones (still in progress)
     active_count = sum(
         1 for j in my_requests
         if j.status in ("requested", "approved", "out")
@@ -48,7 +55,7 @@ def booking_home(
         request=request,
         name="booking.html",
         context={
-            "current_user": current_user,
+            "current_user": user,
             "my_requests": my_requests,
             "active_count": active_count,
         }
@@ -56,8 +63,11 @@ def booking_home(
 
 
 @router.get("/new", response_class=HTMLResponse)
-def booking_new(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if not _is_staff_role(current_user.role):
+def booking_new(request: Request, db: Session = Depends(get_db)):
+    user = _current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/auth/login", status_code=303)
+    if user.role == "gatekeeper":
         return RedirectResponse(url="/gate", status_code=303)
 
     from app.models.department import Department
@@ -72,6 +82,6 @@ def booking_new(request: Request, db: Session = Depends(get_db), current_user: U
         context={
             "departments": departments,
             "stations": stations,
-            "redirect_to": "/booking",  # so the form posts and returns to booking
+            "redirect_to": "/booking",
         }
     )

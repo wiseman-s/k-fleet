@@ -5,6 +5,7 @@ import bcrypt
 from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -34,7 +35,9 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    expire = datetime.utcnow() + (
+        expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -62,21 +65,54 @@ def get_current_user(
 
     if not actual_token:
         raise credentials_exception
+
     payload = decode_token(actual_token)
+
     if not payload or "sub" not in payload:
         raise credentials_exception
+
     user = db.query(User).filter(User.id == int(payload["sub"])).first()
+
     if not user or not user.is_active:
         raise credentials_exception
+
     return user
 
 
 def require_roles(*allowed_roles):
-    def _checker(current_user: User = Depends(get_current_user)) -> User:
+    def _checker(
+        current_user: User = Depends(get_current_user)
+    ) -> User:
         if current_user.role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Role '{current_user.role}' is not allowed for this action"
             )
         return current_user
+
     return _checker
+
+
+def get_current_user_or_redirect(
+    request: Request,
+    db: Session = Depends(get_db)
+) -> User:
+    """Like get_current_user, but instead of raising 401, redirects the browser
+    to the login page. Use this for HTML pages (not API endpoints)."""
+    token = request.cookies.get("kfleet_token")
+
+    if token:
+        payload = decode_token(token)
+
+        if payload and payload.get("sub"):
+            user = db.query(User).filter(
+                User.id == int(payload["sub"])
+            ).first()
+
+            if user and user.is_active:
+                return user
+
+    raise HTTPException(
+        status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+        headers={"Location": "/auth/login"},
+    )
